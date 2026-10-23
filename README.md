@@ -59,7 +59,7 @@ Phase 6 起提供 Windows 便携包（PyInstaller onedir，约 344 MB），**无
 3. 连接游戏（游戏客户端需管理员权限，会弹一次 UAC）→ 勾选任务 → 开始。
 4. 配置/日志/识别资源都在 exe 旁目录；升级只替换 `arknights-auto.exe` + `_internal/`。
 
-> 详细构建与干净机验收清单见 [docs/BUILD.md](docs/BUILD.md)。
+> **新用户请看 [用户指南](docs/USER_GUIDE.md)**（下载 → 首次启动 → 日常使用 → 常见问题）。详细构建与干净机验收清单见 [docs/BUILD.md](docs/BUILD.md)。
 
 ## 🚀 快速开始（源码运行）
 
