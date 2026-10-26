@@ -46,22 +46,57 @@
       "Infrast@CollectHarvest",
       "Infrast@CollectTrust",
       "Infrast@Bell",
-      "Infrast@ResumeStations"
+      "Infrast@TodoCollect"
     ]
   },
   "Infrast@Bell": {
-    "action": "Click",
-    "target": [
-      1242,
-      97,
-      1,
-      1
+    "recognition": "OCR",
+    "expected": [
+      "待办事项",
+      "控制中枢",
+      "进驻总览"
     ],
-    "post_delay": 2200,
+    "roi": [
+      0,
+      0,
+      1281,
+      720
+    ],
+    "action": "Custom",
+    "custom_action": "InfrastOpenTodo",
+    "post_delay": 1500,
     "next": [
-      "Infrast@CollectHarvest",
-      "Infrast@CollectTrust",
-      "Infrast@ResumeStations"
+      "Infrast@TodoCollect"
+    ]
+  },
+  "Infrast@OcrTodoBar": {
+    "recognition": "OCR",
+    "roi": [
+      0,
+      630,
+      900,
+      90
+    ],
+    "action": "DoNothing"
+  },
+  "Infrast@TodoCollect": {
+    "recognition": "OCR",
+    "expected": [
+      "待办事项",
+      "控制中枢",
+      "进驻总览"
+    ],
+    "roi": [
+      0,
+      0,
+      1281,
+      720
+    ],
+    "action": "Custom",
+    "custom_action": "InfrastTodoCollect",
+    "post_delay": 800,
+    "next": [
+      "Infrast@Reception"
     ]
   },
   "Infrast@CollectHarvest": {
@@ -77,7 +112,7 @@
     "post_delay": 2500,
     "next": [
       "Infrast@CollectTrust",
-      "Infrast@ResumeStations"
+      "Infrast@Bell"
     ]
   },
   "Infrast@CollectTrust": {
@@ -92,43 +127,8 @@
     "action": "Click",
     "post_delay": 2000,
     "next": [
-      "Infrast@ResumeStations"
+      "Infrast@Bell"
     ]
-  },
-  "Infrast@ResumeStations": {
-    "recognition": "OCR",
-    "expected": [
-      "待办事项",
-      "控制中枢",
-      "进驻总览",
-      "建造模式"
-    ],
-    "roi": [
-      0,
-      0,
-      1281,
-      720
-    ],
-    "action": "Custom",
-    "custom_action": "InfrastResumeStations",
-    "post_delay": 500,
-    "next": [
-      "Infrast@Reception"
-    ]
-  },
-  "Infrast@OcrMfgStation": {
-    "recognition": "OCR",
-    "expected": [
-      "制造站",
-      "贸易站"
-    ],
-    "roi": [
-      0,
-      90,
-      780,
-      560
-    ],
-    "action": "DoNothing"
   },
   "Infrast@Reception": {
     "recognition": "OCR",
@@ -180,6 +180,41 @@
   "Infrast@Done": {
     "action": "DoNothing"
   },
+  "Infrast@ResumeStations": {
+    "recognition": "OCR",
+    "expected": [
+      "待办事项",
+      "控制中枢",
+      "进驻总览",
+      "建造模式"
+    ],
+    "roi": [
+      0,
+      0,
+      1281,
+      720
+    ],
+    "action": "Custom",
+    "custom_action": "InfrastResumeStations",
+    "post_delay": 500,
+    "next": [
+      "Infrast@Reception"
+    ]
+  },
+  "Infrast@OcrMfgStation": {
+    "recognition": "OCR",
+    "expected": [
+      "制造站",
+      "贸易站"
+    ],
+    "roi": [
+      0,
+      90,
+      780,
+      560
+    ],
+    "action": "DoNothing"
+  },
   "Infrast@Collect": {
     "recognition": "OCR",
     "expected": "待办事项",
@@ -200,5 +235,15 @@
     "next": [
       "Infrast@NextRound"
     ]
+  },
+  "Infrast@OcrNotification": {
+    "recognition": "OCR",
+    "roi": [
+      1000,
+      50,
+      281,
+      140
+    ],
+    "action": "DoNothing"
   }
 }

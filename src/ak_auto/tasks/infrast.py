@@ -177,6 +177,8 @@ def register(resource: Resource) -> None:
     resource.register_custom_action("InfrastResetRound", InfrastResetRound())
     resource.register_custom_action("InfrastNextRound", InfrastNextRound())
     resource.register_custom_action("InfrastReception", InfrastReception())
+    resource.register_custom_action("InfrastTodoCollect", InfrastTodoCollect())
+    resource.register_custom_action("InfrastOpenTodo", InfrastOpenTodo())
 
 
 # ---- 多轮收菜（用户经验：回主页再进基建可刷新待办，收菜卡住时重来一轮）----
@@ -206,3 +208,78 @@ class InfrastNextRound(CustomAction):
         ctrl.post_click(*BACK_BTN).wait()
         time.sleep(2.5)
         return True
+
+
+# ---- 待办事项收菜（用户口径：把左下角「待办事项」右边的按钮全部点完才算收成功）----
+TODO_BUTTONS = ("可收获", "干员信赖", "队列轮换", "干员疲劳", "干员休整")
+
+
+class InfrastTodoCollect(CustomAction):
+    """循环点击待办事项条上的按钮直到点完；不点设施图标（避免进入房间）。"""
+
+    def run(self, context, argv) -> bool:
+        ctrl = context.tasker.controller
+        clicked: set[str] = set()
+        for _ in range(12):
+            try:
+                img = ctrl.cached_image
+            except Exception:  # noqa: BLE001
+                return True
+            if img is None:
+                return True
+            target = None
+            detail = context.run_recognition("Infrast@OcrTodoBar", img)
+            if detail:
+                for name in TODO_BUTTONS:
+                    if name in clicked:
+                        continue
+                    for r in detail.all_results:
+                        text = (getattr(r, "text", "") or "").replace(" ", "")
+                        if name in text:
+                            target = (name, r.box)
+                            break
+                    if target:
+                        break
+            if target is None:
+                print("[infrast] 待办事项已点完", flush=True)
+                return True
+            name, box = target
+            cx, cy = box[0] + box[2] // 2, box[1] + box[3] // 2
+            print(f"[infrast] 点待办「{name}」({cx},{cy})", flush=True)
+            ctrl.post_click(cx, cy).wait()
+            clicked.add(name)
+            time.sleep(3.0)
+        return True
+
+# ---- 打开待办事项 ----
+# 右上角 ⚠（EMERGENCY）与蓝铃铛（NOTIFICATION）上下堆叠：
+#   ⚠ 本身就是一项收菜任务，点完并处理完后 ⚠ 消失，铃铛上移顶替它的位置。
+# 因此两个位置都要点：上面(97) 可能是 ⚠ 或已上移的铃铛；下面(133) 是铃铛。
+BELL_OCR = (1000, 50, 281, 140)
+BELL_Y_CANDIDATES = (97, 133)
+BELL_X = 1242
+
+
+class InfrastOpenTodo(CustomAction):
+    """点开待办事项条：优先 OCR NOTIFICATION 定位；读不到则按堆叠位置依次尝试。"""
+
+    def run(self, context, argv) -> bool:
+        ctrl = context.tasker.controller
+        img = ctrl.cached_image
+        detail = context.run_recognition("Infrast@OcrNotification", img) if img is not None else None
+        if detail:
+            for r in detail.all_results:
+                text = (getattr(r, "text", "") or "").replace(" ", "").upper()
+                if "NOTIFICATION" in text or "通知" in text:
+                    box = r.box
+                    cx, cy = box[0] + box[2] // 2, box[1] + box[2] // 2 - 29
+                    print(f"[infrast] 点铃铛 OCR@({cx},{cy})", flush=True)
+                    ctrl.post_click(cx, cy).wait()
+                    time.sleep(2.0)
+                    return True
+        for y in BELL_Y_CANDIDATES:
+            print(f"[infrast] 点铃铛 固定位置({BELL_X},{y})", flush=True)
+            ctrl.post_click(BELL_X, y).wait()
+            time.sleep(2.0)
+        return True
+

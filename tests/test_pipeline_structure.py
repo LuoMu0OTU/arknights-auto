@@ -24,6 +24,8 @@ KNOWN_CUSTOM_ACTIONS = {
     "InfrastResetRound",
     "InfrastNextRound",
     "InfrastReception",
+    "InfrastTodoCollect",
+    "InfrastOpenTodo",
 }
 
 
