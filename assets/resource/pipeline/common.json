@@ -1,79 +1,161 @@
 {
   "StartUp": {
     "next": [
-      "StartUp@Login",
-      "StartUp@DismissPopup",
       "StartUp@IsHome",
+      "StartUp@WakeUp",
+      "StartUp@DismissPopup",
+      "StartUp@Login",
       "StartUp@Loading",
       "StartUp@TapToWake",
       "StartUp@CloseAnno",
       "StartUp@Offline"
     ]
   },
-
-  "StartUp@Login": {
-    "recognition": "OCR",
-    "expected": ["查看公告", "账号登录", "游客登录"],
-    "roi": [600, 600, 681, 120],
-    "action": "StopTask"
-  },
-
-  "StartUp@DismissPopup": {
-    "recognition": "OCR",
-    "expected": ["寻访现已开放", "博士，您来了"],
-    "roi": [0, 0, 1280, 720],
-    "action": "Click",
-    "target": [640, 360, 1, 1],
-    "post_delay": 600,
-    "next": ["StartUp@DismissPopup", "StartUp@IsHome"]
-  },
-
   "StartUp@IsHome": {
     "recognition": "TemplateMatch",
     "template": "UiTheme/SwitchTheme/SwitchTheme@ToggleSettingsMenu.png",
-    "roi": [227, 327, 159, 152],
+    "roi": [
+      227,
+      327,
+      159,
+      152
+    ],
     "action": "DoNothing",
     "post_delay": 1500
   },
-
+  "StartUp@WakeUp": {
+    "recognition": "OCR",
+    "expected": [
+      "开始唤醒",
+      "开始游戏"
+    ],
+    "roi": [
+      250,
+      400,
+      800,
+      320
+    ],
+    "action": "Click",
+    "post_delay": 4000,
+    "next": [
+      "StartUp"
+    ]
+  },
+  "StartUp@Login": {
+    "recognition": "OCR",
+    "expected": [
+      "查看公告",
+      "账号登录",
+      "游客登录"
+    ],
+    "roi": [
+      600,
+      600,
+      681,
+      120
+    ],
+    "action": "StopTask"
+  },
+  "StartUp@DismissPopup": {
+    "recognition": "OCR",
+    "expected": [
+      "寻访现已开放",
+      "博士，您来了"
+    ],
+    "roi": [
+      0,
+      0,
+      1280,
+      720
+    ],
+    "action": "Click",
+    "target": [
+      640,
+      360,
+      1,
+      1
+    ],
+    "post_delay": 600,
+    "next": [
+      "StartUp@DismissPopup",
+      "StartUp@IsHome"
+    ]
+  },
   "StartUp@Loading": {
     "recognition": "TemplateMatch",
     "template": "LoadingIcon.png",
-    "roi": [480, 210, 320, 280],
+    "roi": [
+      480,
+      210,
+      320,
+      280
+    ],
     "action": "DoNothing",
     "post_delay": 2000,
-    "next": ["StartUp"]
+    "next": [
+      "StartUp"
+    ]
   },
-
   "StartUp@TapToWake": {
     "recognition": "Or",
     "any_of": [
-      { "recognition": "TemplateMatch", "template": "WakeUp/GameStart.png" },
-      { "recognition": "TemplateMatch", "template": "WakeUp/StartToWakeUp.png" },
-      { "recognition": "TemplateMatch", "template": "WakeUp/StartUpConnectingFlag.png" }
+      {
+        "recognition": "TemplateMatch",
+        "template": "WakeUp/GameStart.png"
+      },
+      {
+        "recognition": "TemplateMatch",
+        "template": "WakeUp/StartToWakeUp.png"
+      },
+      {
+        "recognition": "TemplateMatch",
+        "template": "WakeUp/StartUpConnectingFlag.png"
+      }
     ],
     "action": "Click",
-    "next": ["StartUp"]
+    "next": [
+      "StartUp"
+    ]
   },
-
   "StartUp@CloseAnno": {
     "recognition": "OCR",
-    "expected": ["公告", "活动公告", "更新公告"],
-    "roi": [0, 0, 1281, 720],
+    "expected": [
+      "公告",
+      "活动公告",
+      "更新公告"
+    ],
+    "roi": [
+      0,
+      0,
+      1281,
+      720
+    ],
     "action": "Click",
-    "target": [1050, 60, 230, 140],
+    "target": [
+      1050,
+      60,
+      230,
+      140
+    ],
     "post_delay": 800,
-    "next": ["StartUp"]
+    "next": [
+      "StartUp"
+    ]
   },
-
   "StartUp@Offline": {
     "recognition": "TemplateMatch",
     "template": "OfflineConfirm.png",
-    "roi": [310, 409, 648, 165],
+    "roi": [
+      310,
+      409,
+      648,
+      165
+    ],
     "action": "Click",
-    "next": ["StartUp"]
+    "next": [
+      "StartUp"
+    ]
   },
-
   "ReturnToHome": {
     "next": [
       "ReturnToHome@DismissPopup",
@@ -83,55 +165,111 @@
       "ReturnToHome@CloseAnno"
     ]
   },
-
   "ReturnToHome@DismissPopup": {
     "recognition": "OCR",
-    "expected": ["寻访现已开放", "博士，您来了"],
-    "roi": [0, 0, 1280, 720],
+    "expected": [
+      "寻访现已开放",
+      "博士，您来了"
+    ],
+    "roi": [
+      0,
+      0,
+      1280,
+      720
+    ],
     "action": "Click",
-    "target": [640, 360, 1, 1],
+    "target": [
+      640,
+      360,
+      1,
+      1
+    ],
     "post_delay": 600,
-    "next": ["ReturnToHome@DismissPopup", "ReturnToHome@IsHome"]
+    "next": [
+      "ReturnToHome@DismissPopup",
+      "ReturnToHome@IsHome"
+    ]
   },
-
   "ReturnToHome@IsHome": {
     "recognition": "TemplateMatch",
     "template": "UiTheme/SwitchTheme/SwitchTheme@ToggleSettingsMenu.png",
-    "roi": [227, 327, 159, 152],
+    "roi": [
+      227,
+      327,
+      159,
+      152
+    ],
     "action": "DoNothing"
   },
-
   "ReturnToHome@ReturnButton": {
     "recognition": "TemplateMatch",
-    "template": ["ReturnButton/Return.png", "ReturnButton/Return-White.png"],
-    "threshold": [0.7, 0.7],
-    "roi": [0, 0, 180, 80],
+    "template": [
+      "ReturnButton/Return.png",
+      "ReturnButton/Return-White.png"
+    ],
+    "threshold": [
+      0.7,
+      0.7
+    ],
+    "roi": [
+      0,
+      0,
+      180,
+      80
+    ],
     "action": "Click",
-    "next": ["ReturnToHome"]
+    "next": [
+      "ReturnToHome"
+    ]
   },
-
   "ReturnToHome@ReturnConfirm": {
     "recognition": "TemplateMatch",
     "template": "PopupConfirm.png",
-    "roi": [630, 400, 650, 160],
+    "roi": [
+      630,
+      400,
+      650,
+      160
+    ],
     "action": "Click",
-    "next": ["ReturnToHome"]
+    "next": [
+      "ReturnToHome"
+    ]
   },
-
   "ReturnToHome@CloseAnno": {
     "recognition": "OCR",
-    "expected": ["公告", "活动公告", "更新公告"],
-    "roi": [0, 0, 1281, 720],
+    "expected": [
+      "公告",
+      "活动公告",
+      "更新公告"
+    ],
+    "roi": [
+      0,
+      0,
+      1281,
+      720
+    ],
     "action": "Click",
-    "target": [1050, 60, 230, 140],
+    "target": [
+      1050,
+      60,
+      230,
+      140
+    ],
     "post_delay": 800,
-    "next": ["ReturnToHome"]
+    "next": [
+      "ReturnToHome"
+    ]
   },
-
   "Home": {
     "recognition": "TemplateMatch",
     "template": "UiTheme/SwitchTheme/SwitchTheme@ToggleSettingsMenu.png",
-    "roi": [227, 327, 159, 152],
+    "roi": [
+      227,
+      327,
+      159,
+      152
+    ],
     "action": "StopTask"
   }
 }
