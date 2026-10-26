@@ -1,16 +1,48 @@
 {
   "StartUp": {
     "next": [
+      "StartUp@Activity",
       "StartUp@IsHome",
       "StartUp@WakeUp",
       "StartUp@ClosePopup",
       "StartUp@SkipAnim",
-      "StartUp@DismissPopup",
       "StartUp@Login",
+      "StartUp@DismissPopup",
       "StartUp@Loading",
       "StartUp@TapToWake",
       "StartUp@CloseAnno",
       "StartUp@Offline"
+    ]
+  },
+  "StartUp@Activity": {
+    "recognition": "OCR",
+    "expected": [
+      "前瞻签到",
+      "感谢庆典"
+    ],
+    "roi": [
+      0,
+      80,
+      380,
+      220
+    ],
+    "action": "Click",
+    "post_delay": 3000,
+    "next": [
+      "StartUp@ActivityClose"
+    ]
+  },
+  "StartUp@ActivityClose": {
+    "action": "Click",
+    "target": [
+      1248,
+      92,
+      1,
+      1
+    ],
+    "post_delay": 2000,
+    "next": [
+      "StartUp@IsHome"
     ]
   },
   "StartUp@IsHome": {
