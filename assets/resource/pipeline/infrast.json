@@ -41,8 +41,65 @@
     ],
     "action": "DoNothing",
     "next": [
-      "Infrast@ResumeStations",
       "Infrast@Bell"
+    ]
+  },
+  "Infrast@Bell": {
+    "action": "Click",
+    "target": [
+      1254,
+      133,
+      1,
+      1
+    ],
+    "post_delay": 2000,
+    "next": [
+      "Infrast@CollectHarvest",
+      "Infrast@CollectTrust",
+      "Infrast@ResumeStations"
+    ]
+  },
+  "Infrast@CollectHarvest": {
+    "recognition": "OCR",
+    "expected": "可收获",
+    "roi": [
+      0,
+      600,
+      800,
+      120
+    ],
+    "action": "Click",
+    "target": [
+      250,
+      680,
+      1,
+      1
+    ],
+    "post_delay": 2500,
+    "next": [
+      "Infrast@CollectTrust",
+      "Infrast@ResumeStations"
+    ]
+  },
+  "Infrast@CollectTrust": {
+    "recognition": "OCR",
+    "expected": "干员信赖",
+    "roi": [
+      0,
+      600,
+      800,
+      120
+    ],
+    "action": "Click",
+    "target": [
+      355,
+      680,
+      1,
+      1
+    ],
+    "post_delay": 2000,
+    "next": [
+      "Infrast@ResumeStations"
     ]
   },
   "Infrast@ResumeStations": {
@@ -94,10 +151,10 @@
     "custom_action": "InfrastReception",
     "post_delay": 800,
     "next": [
-      "Infrast@Bell"
+      "Infrast@NextRound"
     ],
     "on_error": [
-      "Infrast@Bell"
+      "Infrast@NextRound"
     ]
   },
   "Infrast@OcrReception": {
@@ -111,19 +168,20 @@
     ],
     "action": "DoNothing"
   },
-  "Infrast@Bell": {
-    "action": "Click",
-    "target": [
-      1186,
-      75,
-      84,
-      29
+  "Infrast@NextRound": {
+    "action": "Custom",
+    "custom_action": "InfrastNextRound",
+    "post_delay": 500,
+    "on_error": [
+      "Infrast@Done"
     ],
-    "post_delay": 2000,
     "next": [
-      "Infrast@Collect",
-      "Infrast@NextRound"
+      "Infrast@Enter",
+      "Infrast@Wait"
     ]
+  },
+  "Infrast@Done": {
+    "action": "DoNothing"
   },
   "Infrast@Collect": {
     "recognition": "OCR",
@@ -145,20 +203,5 @@
     "next": [
       "Infrast@NextRound"
     ]
-  },
-  "Infrast@NextRound": {
-    "action": "Custom",
-    "custom_action": "InfrastNextRound",
-    "post_delay": 500,
-    "on_error": [
-      "Infrast@Done"
-    ],
-    "next": [
-      "Infrast@Enter",
-      "Infrast@Wait"
-    ]
-  },
-  "Infrast@Done": {
-    "action": "DoNothing"
   }
 }
