@@ -336,7 +336,7 @@ class AdvancedPage(QWidget):
         fight_form = QFormLayout()
         fight_form.addRow("理智下限（0=不限）", self.min_sanity)
         fight_form.addRow("", self.series)
-        fight_form.addRow(QLabel("「理智下限」计划中：战斗任务将在后续版本消费该配置。"), QLabel(""))
+        fight_form.addRow(QLabel("「理智下限」已生效：理智低于该值时停止刷图。"), QLabel(""))
 
         # ---- 公招高级 ----
         self.tag_priority = QLineEdit(", ".join(cfg.recruit.tag_priority))
@@ -358,7 +358,7 @@ class AdvancedPage(QWidget):
         recruit_form.addRow("招募时长（小时）", self.time_hours)
         recruit_form.addRow("", self.ensure_4star)
         recruit_form.addRow("", self.expedite)
-        recruit_form.addRow(QLabel("「标签优先级」计划中：公招任务将在后续版本消费该配置。"), QLabel(""))
+        recruit_form.addRow(QLabel("「标签优先级」已生效：公招会按该列表优先选词条。"), QLabel(""))
 
         # ---- 运行参数 ----
         self.retry = QSpinBox()

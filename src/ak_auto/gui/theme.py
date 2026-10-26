@@ -134,6 +134,10 @@ QLabel#badgeOk {
     color: %(success)s; background: rgba(76, 187, 94, 0.12);
     border-radius: %(radius_sm)s; padding: 2px 8px; font-size: %(fs_sm)s;
 }
+QLabel#badgeWarn {
+    color: %(warning)s; background: rgba(224, 162, 37, 0.12);
+    border-radius: %(radius_sm)s; padding: 2px 8px; font-size: %(fs_sm)s;
+}
 QLabel#badgeBad {
     color: %(danger)s; background: rgba(239, 95, 87, 0.12);
     border-radius: %(radius_sm)s; padding: 2px 8px; font-size: %(fs_sm)s;

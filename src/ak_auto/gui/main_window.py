@@ -41,6 +41,20 @@ FIXED_PRESETS: dict[str, list[str]] = {
 
 RISK_TEXT = {"low": "低", "medium": "中", "high": "高"}
 
+# 任务支持状态（与 docs/architecture/PHASE7_GUI_AUDIT.md 的矩阵保持一致）
+TASK_STATUS: dict[str, tuple[str, str]] = {
+    "StartUp": ("已验证", "启动游戏 / 自动点开始唤醒 / 清弹窗"),
+    "ReturnToHome": ("已验证", "回到主界面"),
+    "AwardVisit": ("已验证", "好友列表逐个访问基建"),
+    "Infrast": ("已验证", "收菜 + 会客室线索 + 发光站恢复生产；干员换班计划中"),
+    "Mall": ("已验证", "按优先级采购（列表加载慢时会等待）"),
+    "Recruit": ("已验证", "标签识别 + 聘用候选人 + 新招募"),
+    "Fight": ("有限制", "仅打「上一次作战」；选关导航与精确选次计划中"),
+    "Award": ("已验证", "日常 + 周常「收集全部」"),
+    "AwardMail": ("已验证", "邮件一键收取"),
+    "AwardSignIn": ("已验证", "每日签到"),
+}
+
 
 def _sequence(chosen: list[str], order: list[str] | None = None) -> list[str]:
     """按 order 生成执行序列：非 StartUp 任务前插 ReturnToHome（与 CLI daily 一致）。
@@ -335,15 +349,23 @@ class TaskPage(QWidget):
         pc.addWidget(h2("预设"))
         pc.addLayout(self.preset_row)
 
-        # 任务卡片列表
+        # 任务卡片列表（可展开真实参数）
+        from PySide6.QtWidgets import QFormLayout, QSpinBox
+
         self.checks: dict[str, QCheckBox] = {}
+        self.task_settings: dict[str, QWidget] = {}
+        self.task_save_status: dict[str, QLabel] = {}
         task_box = QVBoxLayout()
         task_box.setSpacing(6)
         for t in all_tasks():
+            status, note = TASK_STATUS.get(t.id, ("已验证", ""))
             row = QFrame()
             row.setObjectName("cardFlat")
-            rl = QHBoxLayout(row)
-            rl.setContentsMargins(14, 10, 14, 10)
+            outer = QVBoxLayout(row)
+            outer.setContentsMargins(14, 9, 14, 9)
+            outer.setSpacing(6)
+
+            rl = QHBoxLayout()
             rl.setSpacing(12)
             cb = QCheckBox(t.name)
             cb.setChecked(t.id in self._preset_ids("每日常规"))
@@ -354,9 +376,27 @@ class TaskPage(QWidget):
             desc.setWordWrap(True)
             meta = QLabel(f"{t.category} · 风险 {RISK_TEXT.get(t.risk_level, t.risk_level)}")
             meta.setObjectName("muted")
+            badge = QLabel(status)
+            badge.setObjectName("badgeOk" if status == "已验证" else ("badgeWarn" if status == "有限制" else "badgeBad"))
             rl.addWidget(cb)
             rl.addWidget(desc, 1)
+            rl.addWidget(badge)
             rl.addWidget(meta)
+
+            settings = self._build_task_settings(t.id, note)
+            if settings is not None:
+                gear = QPushButton("⚙")
+                gear.setObjectName("ghost")
+                gear.setFixedWidth(34)
+                gear.setToolTip("展开该任务的可用设置")
+                gear.clicked.connect(lambda _=False, w=settings: w.setVisible(not w.isVisible()))
+                rl.addWidget(gear)
+                settings.setVisible(False)
+                self.task_settings[t.id] = settings
+
+            outer.addLayout(rl)
+            if settings is not None:
+                outer.addWidget(settings)
             task_box.addWidget(row)
 
         task_card = card()
@@ -419,6 +459,79 @@ class TaskPage(QWidget):
         outer.setSpacing(0)
         outer.addWidget(scroll, 1)
         outer.addLayout(bottom)
+
+    # ---- 任务卡片的真实参数 ----
+    def _build_task_settings(self, task_id: str, note: str) -> QWidget | None:
+        """按任务返回可编辑的真实参数区；无参数的返回 None（只显示状态说明）。
+
+        只放已被执行路径消费的参数（见 PHASE7_GUI_AUDIT 配置消费矩阵）。
+        """
+        from PySide6.QtWidgets import QFormLayout, QSpinBox
+
+        cfg = self.cfg
+        box = QWidget()
+        lay = QFormLayout(box)
+        lay.setContentsMargins(6, 4, 6, 4)
+        lay.setSpacing(8)
+
+        if task_id == "Fight":
+            self.fight_times = QSpinBox()
+            self.fight_times.setRange(0, 999)
+            self.fight_times.setValue(cfg.fight.times)
+            self.fight_times.setSpecialValueText("按理智自动")
+            self.fight_min_sanity = QSpinBox()
+            self.fight_min_sanity.setRange(0, 200)
+            self.fight_min_sanity.setValue(cfg.fight.min_sanity)
+            self.fight_min_sanity.setSpecialValueText("不限制")
+            lay.addRow("刷图次数（0 = 按理智自动）", self.fight_times)
+            lay.addRow("理智低于该值停止（0 = 不限制）", self.fight_min_sanity)
+            lay.addRow("", QLabel("关卡固定为「上一次作战」；用药/碎石/选关导航：计划中（暂不生效）"))
+        elif task_id == "Recruit":
+            self.recruit_tags = QLineEdit(", ".join(cfg.recruit.tag_priority))
+            self.recruit_tags.setPlaceholderText("例如：资深干员, 高级资深干员（留空 = 默认策略）")
+            lay.addRow("标签优先级（真实生效）", self.recruit_tags)
+            lay.addRow("", QLabel("次数上限 / 4★保底 / 时长 / 加急：计划中（暂不生效）"))
+        elif task_id == "Mall":
+            self.mall_buy = QLineEdit(", ".join(cfg.mall.buy_first))
+            self.mall_buy.setPlaceholderText("例如：招聘许可, 寻访凭证")
+            self.mall_block = QLineEdit(", ".join(cfg.mall.blacklist))
+            self.mall_block.setPlaceholderText("例如：家具零件")
+            lay.addRow("购买优先级（真实生效）", self.mall_buy)
+            lay.addRow("黑名单（真实生效）", self.mall_block)
+        else:
+            if not note:
+                return None
+            info = QLabel(note)
+            info.setObjectName("caption")
+            info.setWordWrap(True)
+            lay.addRow(info)
+            return None if task_id in ("StartUp", "ReturnToHome") else box
+
+        status = QLabel("")
+        status.setObjectName("muted")
+        save = QPushButton("保存本任务设置")
+        save.clicked.connect(lambda _=False, tid=task_id, st=status: self._save_task_settings(tid, st))
+        row = QHBoxLayout()
+        row.addWidget(save)
+        row.addWidget(status)
+        row.addStretch(1)
+        lay.addRow(row)
+        return box
+
+    def _save_task_settings(self, task_id: str, status: QLabel) -> None:
+        cfg = self.cfg
+        if task_id == "Fight":
+            cfg.fight.times = self.fight_times.value()
+            cfg.fight.min_sanity = self.fight_min_sanity.value()
+        elif task_id == "Recruit":
+            tags = [s.strip() for s in self.recruit_tags.text().replace("，", ",").split(",")]
+            cfg.recruit.tag_priority = [s for s in tags if s]
+        elif task_id == "Mall":
+            for attr, widget in (("buy_first", self.mall_buy), ("blacklist", self.mall_block)):
+                items = [s.strip() for s in widget.text().replace("，", ",").split(",")]
+                setattr(cfg.mall, attr, [s for s in items if s])
+        self.svc.save(cfg)
+        status.setText("✓ 已保存，下次运行生效")
 
     # ---- 预设 ----
     def preset_names(self) -> list[str]:
