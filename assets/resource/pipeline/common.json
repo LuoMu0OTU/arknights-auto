@@ -3,6 +3,7 @@
     "next": [
       "StartUp@IsHome",
       "StartUp@WakeUp",
+      "StartUp@ClosePopup",
       "StartUp@SkipAnim",
       "StartUp@DismissPopup",
       "StartUp@Login",
@@ -40,6 +41,33 @@
     ],
     "action": "Click",
     "post_delay": 4000,
+    "next": [
+      "StartUp"
+    ]
+  },
+  "StartUp@ClosePopup": {
+    "recognition": "OCR",
+    "expected": [
+      "特别物资",
+      "累计签到",
+      "签到奖励",
+      "活动已开放",
+      "视相博物馆"
+    ],
+    "roi": [
+      0,
+      80,
+      1281,
+      620
+    ],
+    "action": "Click",
+    "target": [
+      1170,
+      155,
+      1,
+      1
+    ],
+    "post_delay": 1200,
     "next": [
       "StartUp"
     ]
@@ -180,6 +208,7 @@
       "ReturnToHome@IsHome",
       "ReturnToHome@ReturnConfirm",
       "ReturnToHome@ReturnButton",
+      "ReturnToHome@ClosePopup",
       "ReturnToHome@CloseAnno"
     ]
   },
@@ -222,6 +251,20 @@
     ],
     "action": "DoNothing"
   },
+  "ReturnToHome@ReturnConfirm": {
+    "recognition": "TemplateMatch",
+    "template": "PopupConfirm.png",
+    "roi": [
+      630,
+      400,
+      650,
+      160
+    ],
+    "action": "Click",
+    "next": [
+      "ReturnToHome"
+    ]
+  },
   "ReturnToHome@ReturnButton": {
     "recognition": "TemplateMatch",
     "template": [
@@ -243,16 +286,29 @@
       "ReturnToHome"
     ]
   },
-  "ReturnToHome@ReturnConfirm": {
-    "recognition": "TemplateMatch",
-    "template": "PopupConfirm.png",
+  "ReturnToHome@ClosePopup": {
+    "recognition": "OCR",
+    "expected": [
+      "特别物资",
+      "累计签到",
+      "签到奖励",
+      "活动已开放",
+      "视相博物馆"
+    ],
     "roi": [
-      630,
-      400,
-      650,
-      160
+      0,
+      80,
+      1281,
+      620
     ],
     "action": "Click",
+    "target": [
+      1170,
+      155,
+      1,
+      1
+    ],
+    "post_delay": 1200,
     "next": [
       "ReturnToHome"
     ]
