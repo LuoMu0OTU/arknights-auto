@@ -39,9 +39,20 @@ jobs:
         run: pip install -e ".[dev]"
       - name: 构建
         run: python tools/build_windows.py
-      - name: 冒烟（doctor 自检）
+      # 发布阻断硬性冒烟（G7.4）：打包后的 exe 必须能启动并输出任务目录。
+      # 这能抓住「缺少 hiddenimport / 动态库缺失 / 引导器崩溃」等打包回归。
+      # 注意：--help 在本项目 Typer 下退出码非 0，故以 tasks 为硬性判据。
+      - name: 冒烟（打包 exe 可运行，发布阻断）
         run: |
-          & .\dist\ArknightsAuto\arknights-auto.exe doctor
+          $out = & .\dist\ArknightsAuto\arknights-auto.exe tasks 2>&1
+          Write-Host $out
+          if ($LASTEXITCODE -ne 0) { throw "打包 exe tasks 退出码 $LASTEXITCODE" }
+          foreach ($name in @("StartUp", "Infrast", "Fight", "Recruit", "Mall")) {
+            if ($out -notmatch $name) { throw "打包 exe tasks 输出缺少 $name" }
+          }
+      # 环境自检为信息性步骤：CI 无游戏窗口、未下载识别资源，失败属预期，不阻断发布。
+      - name: 环境自检（信息性，不阻断）
+        run: & .\dist\ArknightsAuto\arknights-auto.exe doctor
         continue-on-error: true
       - name: 上传产物
         uses: actions/upload-artifact@v4
