@@ -52,7 +52,8 @@ jobs:
           }
       # 环境自检为信息性步骤：CI 无游戏窗口、未下载识别资源，失败属预期，不阻断发布。
       - name: 环境自检（信息性，不阻断）
-        run: & .\dist\ArknightsAuto\arknights-auto.exe doctor
+        run: |
+          & .\dist\ArknightsAuto\arknights-auto.exe doctor
         continue-on-error: true
       - name: 上传产物
         uses: actions/upload-artifact@v4
