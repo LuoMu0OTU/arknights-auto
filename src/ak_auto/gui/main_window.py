@@ -5,7 +5,7 @@
 """
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -40,6 +40,25 @@ FIXED_PRESETS: dict[str, list[str]] = {
 }
 
 RISK_TEXT = {"low": "低", "medium": "中", "high": "高"}
+
+TASK_NAMES: dict[str, str] = {}  # 运行时由 all_tasks() 填充
+
+# 执行状态中文（G7.3：界面不裸露英文状态值）
+STATE_NAMES = {
+    "running": "运行中",
+    "succeeded": "成功",
+    "failed": "失败",
+    "cancelled": "已取消",
+    "pending": "等待中",
+    "preparing": "准备中",
+}
+
+# 失败码 -> 用户可读建议（G7.3：先给下一步，而不是堆栈）
+FAILURE_HINTS = {
+    "missing-node": "识别资源/流水线缺失：请运行「首次安装/准备资源」后重试。",
+    "timeout": "任务超时：确认游戏未被最小化、网络与帧率正常。",
+    "cancelled": "已手动停止。",
+}
 
 # 任务支持状态（与 docs/architecture/PHASE7_GUI_AUDIT.md 的矩阵保持一致）
 TASK_STATUS: dict[str, tuple[str, str]] = {
@@ -170,9 +189,29 @@ class HomePage(QWidget):
         rc.addWidget(h2("上次运行"))
         rc.addWidget(self.last_label)
 
+        # 本次运行结果卡片（运行结束后出现）
+        self.result_box = QWidget()
+        self.result_text = QLabel("")
+        self.result_text.setObjectName("dim")
+        self.result_text.setWordWrap(True)
+        rbox = QVBoxLayout(self.result_box)
+        rbox.setContentsMargins(16, 14, 16, 14)
+        rbox.setSpacing(8)
+        rbox.addWidget(h2("本次运行结果"))
+        rbox.addWidget(self.result_text)
+        self.result_card = card()
+        self.result_card.setLayout(rbox)
+        self.result_card.setVisible(False)
+
         # 运行控制卡片
         self.run_state = QLabel("运行状态：空闲")
         self.run_state.setObjectName("accent")
+        self.run_meta = QLabel("")
+        self.run_meta.setObjectName("caption")
+        self._run_timer = QTimer(self)
+        self._run_timer.setInterval(1000)
+        self._run_timer.timeout.connect(self._tick_elapsed)
+        self._run_t0 = 0.0
         self.progress = QProgressBar()
         self.progress.setRange(0, 1)
         self.progress.setValue(0)
@@ -200,6 +239,7 @@ class HomePage(QWidget):
         btns.addStretch(1)
         rl.addLayout(btns)
         rl.addWidget(self.run_state)
+        rl.addWidget(self.run_meta)
         rl.addWidget(self.progress)
 
         # 日志卡片
@@ -222,6 +262,7 @@ class HomePage(QWidget):
         body.addWidget(result_card)
         body.addWidget(self.update_label)
         body.addWidget(run_card)
+        body.addWidget(self.result_card)
         body.addWidget(log_card, 1)
 
         wrap = QWidget()
@@ -263,23 +304,62 @@ class HomePage(QWidget):
 
     # ---- 运行状态区（TaskWorker 信号驱动）----
     def begin_run(self, total: int) -> None:
+        import time as _t
+
         self.progress.setRange(0, max(1, total))
         self.progress.setValue(0)
         self.progress.setVisible(True)
         self.run_state.setText("运行状态：准备中 ...")
+        self.result_card.setVisible(False)
+        self._run_t0 = _t.time()
+        self._run_total = max(1, total)
+        self._run_done = 0
+        self._run_timer.start()
 
-    def set_task_state(self, task_id: str, state: str) -> None:
-        self.run_state.setText(f"运行状态：{task_id} — {state}")
+    def _tick_elapsed(self) -> None:
+        import time as _t
+
+        if self._run_t0:
+            used = int(_t.time() - self._run_t0)
+            self.run_meta.setText(
+                f"已完成 {self._run_done}/{self._run_total} · 已用时 {used // 60}:{used % 60:02d}"
+            )
+
+    def set_task_state(self, task_id: str, state: str, name: str | None = None) -> None:
+        label = name or task_id
+        self.run_state.setText(f"运行状态：{label} — {state}")
 
     def set_progress(self, done: int, total: int) -> None:
         self.progress.setRange(0, max(1, total))
         self.progress.setValue(done)
+        self._run_done = done
+        self._tick_elapsed()
 
     def finish_run(self, summary: str) -> None:
         self.run_state.setText(f"运行状态：已结束（{summary}）")
         self.progress.setVisible(False)
+        self._run_timer.stop()
+        self._run_t0 = 0.0
+        self.run_meta.setText("")
         self.refresh_last()
         self.refresh_status()
+
+    def show_results(self, results) -> None:
+        """运行结束后的结构化结果：成功数 + 失败任务及建议（技术细节留给日志）。"""
+        if not results:
+            return
+        ok = [r for r in results if r.ok]
+        bad = [r for r in results if not r.ok]
+        lines = [f"成功 {len(ok)} 项，失败 {len(bad)} 项。"]
+        for r in bad[:5]:
+            name = TASK_NAMES.get(r.task_id, r.task_id)
+            reason = r.error or r.status
+            hint = FAILURE_HINTS.get(str(reason), "可查看下方日志，或用「诊断 → 导出诊断包」反馈。")
+            lines.append(f"✗ {name}：{reason} — {hint}")
+        if len(bad) > 5:
+            lines.append(f"（另有 {len(bad) - 5} 项失败，见下方日志）")
+        self.result_text.setText("\n".join(lines))
+        self.result_card.setVisible(True)
 
     @staticmethod
     def _last_run_text() -> str:
@@ -640,8 +720,34 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.pages, 1)
         self.setCentralWidget(central)
 
-        self.statusBar().showMessage("就绪")
+        # 全局状态栏：当前任务/进度 + 始终可见的安全停止入口（G7.3）
+        self.status_text = QLabel("就绪")
+        self.statusBar().addWidget(self.status_text, 1)
+        self.global_stop = QPushButton("⏹ 停止运行")
+        self.global_stop.setObjectName("danger")
+        self.global_stop.setVisible(False)
+        self.global_stop.setToolTip("安全停止当前运行（会等待当前节点结束）")
+        self.global_stop.clicked.connect(self._stop)
+        self.statusBar().addPermanentWidget(self.global_stop)
+
+        # 空闲时每 8 秒自动刷新环境状态（游戏中途启动/关闭能反映出来）
+        self._idle_timer = QTimer(self)
+        self._idle_timer.setInterval(8000)
+        self._idle_timer.timeout.connect(self._idle_refresh)
+        self._idle_timer.start()
         self._update_worker = None
+        # 任务 ID → 中文名（单一来源：任务目录）
+        TASK_NAMES.clear()
+        TASK_NAMES.update({t.id: t.name for t in all_tasks()})
+
+    def _idle_refresh(self) -> None:
+        running = self.worker is not None and self.worker.isRunning()
+        if running:
+            return
+        try:
+            self.home.refresh_status()
+        except Exception:  # noqa: BLE001 —— 状态刷新失败不影响主流程
+            pass
 
     # ---- 侧边栏 ----
     def _build_sidebar(self) -> None:
@@ -780,12 +886,23 @@ class MainWindow(QMainWindow):
         self.worker.done.connect(self._on_done)
         self.worker.failed.connect(lambda msg: self._log(f"[gui] 失败：{msg}"))
         self.worker.finished.connect(self._on_finished)
-        self.worker.task_state.connect(self.home.set_task_state)
+        self.worker.task_state.connect(
+            lambda tid, st: self.home.set_task_state(tid, STATE_NAMES.get(st, st), TASK_NAMES.get(tid, tid))
+        )
+        self.worker.task_state.connect(
+            lambda tid, st: self.status_text.setText(
+                f"运行中：{TASK_NAMES.get(tid, tid)}（{STATE_NAMES.get(st, st)}）"
+            )
+        )
         self.worker.seq_progress.connect(self.home.set_progress)
+        self.worker.seq_progress.connect(
+            lambda done, total: self.status_text.setText(f"运行中：已完成 {done}/{total}")
+        )
         self.worker.start()
         self.home.set_running(True)
         self.home.begin_run(len(entries))
-        self.statusBar().showMessage("运行中 ...")
+        self.global_stop.setVisible(True)
+        self.status_text.setText("运行中 ...")
 
     def _start_and_show_log(self, entries: list[str]) -> None:
         self._start(entries)
@@ -800,10 +917,12 @@ class MainWindow(QMainWindow):
             self._log(r.summary)
         ok_n = sum(1 for r in results if r.ok)
         self.home.finish_run(f"{ok_n}/{len(results)} 成功")
+        self.home.show_results(results)
 
     def _on_finished(self) -> None:
         self.home.set_running(False)
-        self.statusBar().showMessage("就绪")
+        self.global_stop.setVisible(False)
+        self.status_text.setText("就绪")
         self.runlog.refresh()
         self.home.refresh_last()
 

@@ -518,6 +518,21 @@ class DiagnosticsPage(QWidget):
         from ..application.diagnostics_export import export_diagnostics
         from ..config import PROJECT_ROOT
 
+        # G7.3：导出前明确告知包含内容与被脱敏的字段，避免误分享
+        reply = QMessageBox.question(
+            self,
+            "导出诊断包",
+            "诊断包将包含：\n"
+            "  · logs/ 运行日志与报告\n"
+            "  · 配置（游戏路径已脱敏替换为 <redacted>）\n"
+            "  · 失败截图（如有）\n\n"
+            "请确认没有账号密码等敏感信息后再分享。是否继续？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
         self.output.setPlainText("导出中 ...")
         self.export_btn.setEnabled(False)
 

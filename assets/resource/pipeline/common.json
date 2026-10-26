@@ -3,6 +3,7 @@
     "next": [
       "StartUp@IsHome",
       "StartUp@WakeUp",
+      "StartUp@SkipAnim",
       "StartUp@DismissPopup",
       "StartUp@Login",
       "StartUp@Loading",
@@ -37,6 +38,21 @@
     ],
     "action": "Click",
     "post_delay": 4000,
+    "next": [
+      "StartUp"
+    ]
+  },
+  "StartUp@SkipAnim": {
+    "recognition": "OCR",
+    "expected": "SKIP",
+    "roi": [
+      1080,
+      0,
+      201,
+      100
+    ],
+    "action": "Click",
+    "post_delay": 1500,
     "next": [
       "StartUp"
     ]
