@@ -47,7 +47,8 @@ class InfrastResumeStations(CustomAction):
     """内部循环点完所有停工的制造站/贸易站，然后一次性返回 True（避免 next/on_error 重叠导致的死循环）。"""
 
     def run(self, context, argv) -> bool:
-        for _ in range(8):
+        self.reset_clicked()
+        for _ in range(6):
             if not self._click_one(context):
                 break
         return True
@@ -73,11 +74,22 @@ class InfrastResumeStations(CustomAction):
         if not stopped:
             print("[infrast] 没有停工的制造站了", flush=True)
             return False
-        cx, cy = stopped[0]
-        print(f"[infrast] 点击停工制造站 ({cx},{cy})，共 {len(stopped)} 个", flush=True)
+        clicked = getattr(self, "_clicked", None)
+        if clicked is None:
+            clicked = self._clicked = set()
+        fresh = [(x, y) for (x, y) in stopped if (x, y) not in clicked]
+        if not fresh:
+            print("[infrast] 已点击过的站不再重复点", flush=True)
+            return False
+        cx, cy = fresh[0]
+        clicked.add((cx, cy))
+        print(f"[infrast] 点击停工制造站 ({cx},{cy})，共 {len(fresh)} 个待点", flush=True)
         ctrl.post_click(cx, cy).wait()
-        time.sleep(1.5)
+        time.sleep(3.0)
         return True
+
+    def reset_clicked(self) -> None:
+        self._clicked = set()
 
 
 # ---- 会客室线索收取（完整流程，坐标 1281×720 真机标定）----

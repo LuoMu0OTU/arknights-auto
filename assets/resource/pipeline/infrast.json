@@ -22,7 +22,7 @@
       85,
       75
     ],
-    "post_delay": 3000,
+    "post_delay": 4000,
     "next": [
       "Infrast@Wait"
     ]
@@ -30,29 +30,34 @@
   "Infrast@Wait": {
     "recognition": "OCR",
     "expected": [
+      "待办事项",
+      "控制中枢",
       "进驻总览",
       "建造模式"
     ],
     "roi": [
       0,
-      80,
-      200,
-      150
+      0,
+      1281,
+      720
     ],
     "action": "DoNothing",
     "next": [
-      "Infrast@Bell"
+      "Infrast@CollectHarvest",
+      "Infrast@CollectTrust",
+      "Infrast@Bell",
+      "Infrast@ResumeStations"
     ]
   },
   "Infrast@Bell": {
     "action": "Click",
     "target": [
-      1254,
-      133,
+      1242,
+      97,
       1,
       1
     ],
-    "post_delay": 2000,
+    "post_delay": 2200,
     "next": [
       "Infrast@CollectHarvest",
       "Infrast@CollectTrust",
@@ -64,17 +69,11 @@
     "expected": "可收获",
     "roi": [
       0,
-      600,
-      800,
-      120
+      640,
+      900,
+      80
     ],
     "action": "Click",
-    "target": [
-      250,
-      680,
-      1,
-      1
-    ],
     "post_delay": 2500,
     "next": [
       "Infrast@CollectTrust",
@@ -86,17 +85,11 @@
     "expected": "干员信赖",
     "roi": [
       0,
-      600,
-      800,
-      120
+      640,
+      900,
+      80
     ],
     "action": "Click",
-    "target": [
-      355,
-      680,
-      1,
-      1
-    ],
     "post_delay": 2000,
     "next": [
       "Infrast@ResumeStations"
@@ -105,14 +98,16 @@
   "Infrast@ResumeStations": {
     "recognition": "OCR",
     "expected": [
+      "待办事项",
+      "控制中枢",
       "进驻总览",
       "建造模式"
     ],
     "roi": [
       0,
-      80,
-      200,
-      150
+      0,
+      1281,
+      720
     ],
     "action": "Custom",
     "custom_action": "InfrastResumeStations",
@@ -138,14 +133,16 @@
   "Infrast@Reception": {
     "recognition": "OCR",
     "expected": [
+      "待办事项",
+      "控制中枢",
       "进驻总览",
       "建造模式"
     ],
     "roi": [
       0,
-      80,
-      200,
-      150
+      0,
+      1281,
+      720
     ],
     "action": "Custom",
     "custom_action": "InfrastReception",
