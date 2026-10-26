@@ -44,11 +44,11 @@ jobs:
       # 注意：--help 在本项目 Typer 下退出码非 0，故以 tasks 为硬性判据。
       - name: 冒烟（打包 exe 可运行，发布阻断）
         run: |
-          $out = & .\dist\ArknightsAuto\arknights-auto.exe tasks 2>&1
+          $out = (& .\dist\ArknightsAuto\arknights-auto.exe tasks 2>&1) -join "`n"
           Write-Host $out
           if ($LASTEXITCODE -ne 0) { throw "打包 exe tasks 退出码 $LASTEXITCODE" }
           foreach ($name in @("StartUp", "Infrast", "Fight", "Recruit", "Mall")) {
-            if ($out -notmatch $name) { throw "打包 exe tasks 输出缺少 $name" }
+            if ($out -notmatch [regex]::Escape($name)) { throw "打包 exe tasks 输出缺少 $name" }
           }
       # 环境自检为信息性步骤：CI 无游戏窗口、未下载识别资源，失败属预期，不阻断发布。
       - name: 环境自检（信息性，不阻断）
