@@ -47,8 +47,7 @@ class SettingsPage(QWidget):
         self.cfg = cfg
         self.svc = svc
 
-        title = QLabel("设置")
-        title.setObjectName("title")
+        from .main_window import caption, card, h1, h2
 
         self.game_path = QLineEdit(cfg.startup.game_path)
         self.game_path.setPlaceholderText(r"例如 E:\Arknights\Arknights.exe")
@@ -68,13 +67,19 @@ class SettingsPage(QWidget):
         self.retry.setValue(cfg.runtime.retry_per_task)
 
         form = QFormLayout()
+        form.setSpacing(10)
         form.addRow("游戏路径", self.game_path)
         form.addRow("刷图关卡", self.stage)
         form.addRow("刷图次数（0=直到理智耗尽）", self.times)
         form.addRow("用药数量", self.medicine)
         form.addRow("碎源石数量", self.stone)
         form.addRow("任务失败重试次数", self.retry)
-        form.setLabelAlignment(form.labelAlignment())
+        form_card = card()
+        fc = QVBoxLayout(form_card)
+        fc.setContentsMargins(16, 14, 16, 14)
+        fc.setSpacing(10)
+        fc.addWidget(h2("游戏与刷图"))
+        fc.addLayout(form)
 
         risk = QLabel("⚠ 用药 / 碎源石消耗付费资源：请确认后再设置（默认关闭）。")
         risk.setObjectName("muted")
@@ -110,14 +115,25 @@ class SettingsPage(QWidget):
         row.addWidget(self.reset_btn)
         row.addStretch(1)
 
+        prof_card = card()
+        pc2 = QVBoxLayout(prof_card)
+        pc2.setContentsMargins(16, 12, 16, 12)
+        pc2.setSpacing(8)
+        pc2.addWidget(h2("配置方案"))
+        pc2.addLayout(profilerow)
+
         lay = QVBoxLayout(self)
-        lay.addWidget(title)
-        lay.addLayout(form)
+        lay.setContentsMargins(20, 18, 20, 18)
+        lay.setSpacing(12)
+        lay.addWidget(h1("设置"))
+        lay.addWidget(caption("修改后点「保存」生效；默认关闭付费资源消耗。"))
+        lay.addWidget(form_card)
         lay.addWidget(risk)
         lay.addLayout(row)
-        lay.addLayout(profilerow)
+        lay.addWidget(prof_card)
         lay.addWidget(self.wizard_btn)
         lay.addWidget(self.status)
+        lay.addStretch(1)
         lay.addStretch(1)
 
     def _wizard(self) -> None:
@@ -201,19 +217,24 @@ class RunLogPage(QWidget):
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        title = QLabel("运行记录")
-        title.setObjectName("title")
+        from .main_window import caption, h1
+
+        title = h1("运行记录")
 
         self.stats_label = QLabel("")
         self.stats_label.setObjectName("muted")
 
         self.list = QListWidget()
         self.detail = QPlainTextEdit()
+        self.detail.setObjectName("log")
         self.detail.setReadOnly(True)
         self.list.currentItemChanged.connect(self._show_current)
 
         lay = QVBoxLayout(self)
+        lay.setContentsMargins(20, 18, 20, 18)
+        lay.setSpacing(12)
         lay.addWidget(title)
+        lay.addWidget(caption("每次运行的逐任务结果；点左侧记录查看详情。"))
         lay.addWidget(self.stats_label)
         lay.addWidget(self.list, 2)
         lay.addWidget(self.detail, 3)
@@ -280,8 +301,9 @@ class AdvancedPage(QWidget):
         self.cfg = cfg
         self.svc = svc
 
-        title = QLabel("高级设置")
-        title.setObjectName("title")
+        from .main_window import h1
+
+        title = h1("高级设置")
         hint = QLabel("这些参数影响实际执行；不确定的项保持默认即可。带「计划中」标注的参数已提供配置，"
                       "将在后续版本生效。")
         hint.setObjectName("muted")
@@ -363,6 +385,8 @@ class AdvancedPage(QWidget):
         btn_row.addStretch(1)
 
         lay = QVBoxLayout(self)
+        lay.setContentsMargins(20, 18, 20, 18)
+        lay.setSpacing(12)
         lay.addWidget(title)
         lay.addWidget(hint)
         lay.addWidget(order_label)
@@ -426,8 +450,9 @@ class DiagnosticsPage(QWidget):
     def __init__(self, cfg: AppConfig, parent=None) -> None:
         super().__init__(parent)
         self.cfg = cfg
-        title = QLabel("诊断")
-        title.setObjectName("title")
+        from .main_window import h1
+
+        title = h1("诊断")
         hint = QLabel("环境自检与窗口探测；只读检查，不执行任何游戏操作。")
         hint.setObjectName("muted")
 
@@ -449,6 +474,8 @@ class DiagnosticsPage(QWidget):
         row.addStretch(1)
 
         lay = QVBoxLayout(self)
+        lay.setContentsMargins(20, 18, 20, 18)
+        lay.setSpacing(12)
         lay.addWidget(title)
         lay.addWidget(hint)
         lay.addLayout(row)

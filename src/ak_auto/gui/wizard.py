@@ -25,10 +25,14 @@ from ..config import AppConfig
 class WelcomePage(QWizardPage):
     def __init__(self) -> None:
         super().__init__()
-        self.setTitle("欢迎使用 arknights-auto")
+        self.setTitle("欢迎使用")
+        brand = QLabel("◈  ARKNIGHTS AUTO")
+        brand.setStyleSheet("font-size: 24px; font-weight: 900;")
+        brand.setObjectName("brandAccent")
+        sub = QLabel("面向《明日方舟》官方 PC 客户端的本地自动化助手")
+        sub.setObjectName("muted")
         text = QLabel(
-            "arknights-auto 是面向《明日方舟》官方 PC 客户端的本地自动化助手。\n\n"
-            "本向导将帮你：\n"
+            "本向导将帮你：\n\n"
             "  1. 检查运行环境（Python / MaaFw / 识别资源）\n"
             "  2. 确认游戏客户端路径\n"
             "  3. 准备识别资源（首次需联网下载）\n\n"
@@ -37,7 +41,13 @@ class WelcomePage(QWizardPage):
         )
         text.setWordWrap(True)
         lay = QVBoxLayout(self)
+        lay.setContentsMargins(8, 12, 8, 8)
+        lay.setSpacing(10)
+        lay.addWidget(brand)
+        lay.addWidget(sub)
+        lay.addSpacing(6)
         lay.addWidget(text)
+        lay.addStretch(1)
 
 
 class EnvPage(QWizardPage):
@@ -145,6 +155,11 @@ class FirstRunWizard(QWizard):
         self.setWindowTitle("arknights-auto 首次启动向导")
         self.resize(640, 480)
         self.setWizardStyle(QWizard.WizardStyle.ModernStyle)
+        self.setButtonText(QWizard.WizardButton.NextButton, "下一步")
+        self.setButtonText(QWizard.WizardButton.BackButton, "上一步")
+        self.setButtonText(QWizard.WizardButton.CancelButton, "取消")
+        self.setButtonText(QWizard.WizardButton.FinishButton, "完成")
+        self.setButtonText(QWizard.WizardButton.HelpButton, "帮助")
         self.addPage(WelcomePage())
         self.addPage(EnvPage())
         self.path_page = PathPage(cfg)

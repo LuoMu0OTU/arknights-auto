@@ -23,7 +23,7 @@ def run_gui() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("arknights-auto")
     app.setOrganizationName("arknights-auto")
-    apply_theme(app)
+    apply_theme(app, getattr(cfg.ui, "theme", "dark"))
 
     # 首次运行（无配置文件）→ 先走向导
     if not svc.path.exists():

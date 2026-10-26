@@ -1,14 +1,15 @@
-"""主窗口与页面框架（Phase 2）。
+"""主窗口与页面框架（Phase 2，视觉重设计 Phase 7）。
 
-结构：左侧导航（首页/任务中心/运行记录/设置）+ QStackedWidget 页面。
+结构：左侧品牌侧边栏（首页/任务中心/运行记录/设置 + 高级模式页）+ QStackedWidget 页面。
 任务中心：勾选任务目录 → 生成执行序列（ReturnToHome 间隔）→ 经 TaskWorker 走真实 Application 层执行。
 """
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -17,6 +18,8 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -36,6 +39,8 @@ FIXED_PRESETS: dict[str, list[str]] = {
     "公招与信用": ["AwardVisit", "Mall", "Recruit"],
 }
 
+RISK_TEXT = {"low": "低", "medium": "中", "high": "高"}
+
 
 def _sequence(chosen: list[str], order: list[str] | None = None) -> list[str]:
     """按 order 生成执行序列：非 StartUp 任务前插 ReturnToHome（与 CLI daily 一致）。
@@ -54,54 +59,193 @@ def _sequence(chosen: list[str], order: list[str] | None = None) -> list[str]:
     return entries
 
 
+# ---------------------------------------------------------------- 通用小组件
+def card(*, flat: bool = False) -> QFrame:
+    f = QFrame()
+    f.setObjectName("cardFlat" if flat else "card")
+    f.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+    return f
+
+
+def h1(text: str) -> QLabel:
+    lb = QLabel(text)
+    lb.setObjectName("h1")
+    return lb
+
+
+def h2(text: str) -> QLabel:
+    lb = QLabel(text)
+    lb.setObjectName("h2")
+    return lb
+
+
+def caption(text: str) -> QLabel:
+    lb = QLabel(text)
+    lb.setObjectName("caption")
+    lb.setWordWrap(True)
+    return lb
+
+
+def status_dot(ok: bool, text: str) -> QLabel:
+    """圆点 + 文本的轻量状态徽标。"""
+    lb = QLabel(("● " if ok else "○ ") + text)
+    lb.setObjectName("badgeOk" if ok else "badgeBad")
+    return lb
+
+
+def page_header(title: str, subtitle: str = "") -> QVBoxLayout:
+    lay = QVBoxLayout()
+    lay.setSpacing(4)
+    lay.addWidget(h1(title))
+    if subtitle:
+        lay.addWidget(caption(subtitle))
+    return lay
+
+
+# ---------------------------------------------------------------- 首页
 class HomePage(QWidget):
     run_requested = Signal(list)
     stop_requested = Signal()
 
     def __init__(self, cfg, parent=None) -> None:
         super().__init__(parent)
-        self.log_view = QPlainTextEdit()
-        self.log_view.setReadOnly(True)
-        self.log_view.setPlaceholderText("事件与日志会显示在这里 ...")
+        self.cfg = cfg
+        self._build()
+        self.refresh_status()
 
-        title = QLabel("首页")
-        title.setObjectName("title")
-        self.status_label = QLabel(self._status_text(cfg))
-        self.status_label.setObjectName("muted")
+    # ---- 布局 ----
+    def _build(self) -> None:
+        # 顶部标题（徽标右上、副标题整行）
+        self.status_chip = status_dot(False, "检测中")
+        title_row = QHBoxLayout()
+        title_row.addWidget(h1("指挥中心"))
+        title_row.addStretch(1)
+        title_row.addWidget(self.status_chip, 0, Qt.AlignmentFlag.AlignTop)
+        header = QVBoxLayout()
+        header.setSpacing(4)
+        header.addLayout(title_row)
+        header.addWidget(caption("游戏连接状态、任务运行入口与实时日志。"))
+
+        # 状态卡片行
+        self.game_chip = status_dot(False, "游戏窗口：检测中")
+        self.asset_chip = status_dot(False, "识别资源：检测中")
+        status_card = card()
+        sc = QVBoxLayout(status_card)
+        sc.setContentsMargins(16, 14, 16, 14)
+        sc.setSpacing(8)
+        sc.addWidget(h2("运行环境"))
+        row = QHBoxLayout()
+        row.addWidget(self.game_chip)
+        row.addWidget(self.asset_chip)
+        row.addStretch(1)
+        sc.addLayout(row)
+
+        # 上次结果 + 更新提示
         self.last_label = QLabel(self._last_run_text())
-        self.last_label.setObjectName("muted")
+        self.last_label.setObjectName("dim")
+        self.last_label.setWordWrap(True)
         self.update_label = QLabel("")
         self.update_label.setObjectName("update")
         self.update_label.setOpenExternalLinks(True)
         self.update_label.setVisible(False)
+
+        result_card = card()
+        rc = QVBoxLayout(result_card)
+        rc.setContentsMargins(16, 14, 16, 14)
+        rc.setSpacing(8)
+        rc.addWidget(h2("上次运行"))
+        rc.addWidget(self.last_label)
+
+        # 运行控制卡片
         self.run_state = QLabel("运行状态：空闲")
+        self.run_state.setObjectName("accent")
         self.progress = QProgressBar()
         self.progress.setRange(0, 1)
         self.progress.setValue(0)
         self.progress.setVisible(False)
 
-        self.start_btn = QPushButton("运行 StartUp（快速启动）")
-        self.start_btn.setObjectName("primary")
+        self.start_btn = QPushButton("快速启动 StartUp")
+        self.start_btn.setObjectName("bigPrimary")
+        self.start_btn.setToolTip("进入游戏主页并清弹窗，确认环境就绪")
         self.start_btn.clicked.connect(lambda: self.run_requested.emit(["StartUp"]))
         self.stop_btn = QPushButton("停止")
         self.stop_btn.setObjectName("danger")
         self.stop_btn.setEnabled(False)
         self.stop_btn.clicked.connect(self.stop_requested.emit)
 
-        row = QHBoxLayout()
-        row.addWidget(self.start_btn)
-        row.addWidget(self.stop_btn)
-        row.addStretch(1)
+        run_card = card()
+        rl = QVBoxLayout(run_card)
+        rl.setContentsMargins(16, 14, 16, 16)
+        rl.setSpacing(10)
+        rl.addWidget(h2("开始运行"))
+        rl.addWidget(caption("快速启动仅确认游戏可连接；完整任务请到「任务中心」选择。"))
+        btns = QHBoxLayout()
+        btns.setSpacing(10)
+        btns.addWidget(self.start_btn)
+        btns.addWidget(self.stop_btn)
+        btns.addStretch(1)
+        rl.addLayout(btns)
+        rl.addWidget(self.run_state)
+        rl.addWidget(self.progress)
 
-        lay = QVBoxLayout(self)
-        lay.addWidget(title)
-        lay.addWidget(self.status_label)
-        lay.addWidget(self.last_label)
-        lay.addWidget(self.update_label)
-        lay.addWidget(self.run_state)
-        lay.addWidget(self.progress)
-        lay.addLayout(row)
-        lay.addWidget(self.log_view, 1)
+        # 日志卡片
+        self.log_view = QPlainTextEdit()
+        self.log_view.setObjectName("log")
+        self.log_view.setReadOnly(True)
+        self.log_view.setPlaceholderText("事件与日志会显示在这里 ...")
+        log_card = card()
+        lc = QVBoxLayout(log_card)
+        lc.setContentsMargins(16, 14, 16, 16)
+        lc.setSpacing(8)
+        lc.addWidget(h2("实时日志"))
+        lc.addWidget(self.log_view, 1)
+
+        # 组装
+        body = QVBoxLayout()
+        body.setSpacing(12)
+        body.addLayout(header)
+        body.addWidget(status_card)
+        body.addWidget(result_card)
+        body.addWidget(self.update_label)
+        body.addWidget(run_card)
+        body.addWidget(log_card, 1)
+
+        wrap = QWidget()
+        wrap.setLayout(body)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(wrap)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(scroll)
+
+    # ---- 状态刷新 ----
+    def refresh_status(self) -> None:
+        from .. import device
+        from ..infrastructure import AssetManager
+
+        am = AssetManager().status()
+        self.asset_chip.setText(("● " if am["ready"] else "○ ") + "识别资源：" + ("就绪" if am["ready"] else "未就绪"))
+        self.asset_chip.setObjectName("badgeOk" if am["ready"] else "badgeBad")
+        self.asset_chip.style().unpolish(self.asset_chip)
+        self.asset_chip.style().polish(self.asset_chip)
+
+        running = False
+        try:
+            device.init_maa()
+            win = device.find_game_window(self.cfg)
+            running = bool(win)
+        except Exception:  # noqa: BLE001
+            pass
+        self.game_chip.setText(("● " if running else "○ ") + "游戏窗口：" + ("已运行" if running else "未运行"))
+        self.game_chip.setObjectName("badgeOk" if running else "badgeBad")
+        self.game_chip.style().unpolish(self.game_chip)
+        self.game_chip.style().polish(self.game_chip)
+
+        self.status_chip.setText("● 已就绪" if (running and am["ready"]) else "○ 待准备")
+        self.status_chip.setObjectName("badgeOk" if (running and am["ready"]) else "badgeBad")
+        self.status_chip.style().unpolish(self.status_chip)
+        self.status_chip.style().polish(self.status_chip)
 
     # ---- 运行状态区（TaskWorker 信号驱动）----
     def begin_run(self, total: int) -> None:
@@ -120,6 +264,8 @@ class HomePage(QWidget):
     def finish_run(self, summary: str) -> None:
         self.run_state.setText(f"运行状态：已结束（{summary}）")
         self.progress.setVisible(False)
+        self.refresh_last()
+        self.refresh_status()
 
     @staticmethod
     def _last_run_text() -> str:
@@ -133,15 +279,15 @@ class HomePage(QWidget):
             reverse=True,
         )
         if not files:
-            return "上次结果：暂无运行记录"
+            return "暂无运行记录"
         try:
             data = json.loads(files[0].read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
-            return "上次结果：记录无法读取"
+            return "记录无法读取"
         tasks = data.get("tasks", [])
         ok_n = sum(1 for t in tasks if t.get("ok"))
         total = data.get("total_ms", 0) / 1000
-        return f"上次结果（{data.get('started_at', '?')}）：{ok_n}/{len(tasks)} 成功，耗时 {total:.0f}s"
+        return f"{data.get('started_at', '?')} · {ok_n}/{len(tasks)} 成功 · 耗时 {total:.0f}s"
 
     def refresh_last(self) -> None:
         self.last_label.setText(self._last_run_text())
@@ -156,21 +302,6 @@ class HomePage(QWidget):
         )
         self.update_label.setVisible(True)
 
-    @staticmethod
-    def _status_text(cfg) -> str:
-        from .. import device
-        from ..infrastructure import AssetManager
-
-        am = AssetManager().status()
-        parts = [f"识别资源：{'就绪' if am['ready'] else '未就绪（先 fetch-assets）'}"]
-        try:
-            device.init_maa()
-            win = device.find_game_window(cfg)
-            parts.append(f"游戏窗口：{'已运行' if win else '未运行'}")
-        except Exception:  # noqa: BLE001
-            parts.append("游戏窗口：未知")
-        return " · ".join(parts)
-
     def append_log(self, text: str) -> None:
         self.log_view.appendPlainText(text)
 
@@ -179,6 +310,7 @@ class HomePage(QWidget):
         self.stop_btn.setEnabled(running)
 
 
+# ---------------------------------------------------------------- 任务中心
 class TaskPage(QWidget):
     run_requested = Signal(list)
 
@@ -186,58 +318,107 @@ class TaskPage(QWidget):
         super().__init__(parent)
         self.cfg = cfg
         self.svc = svc or ConfigurationService()
-        title = QLabel("任务中心")
-        title.setObjectName("title")
-        hint = QLabel("勾选要执行的任务（仅展示真实可用任务），点「开始执行」。每日常规 = 配置的任务顺序。")
-        hint.setObjectName("muted")
+        self._build()
+        self.refresh_presets()
+        self.refresh_mode()
 
-        self.checks: dict[str, QCheckBox] = {}
-        for t in all_tasks():
-            cb = QCheckBox(f"{t.name}（{t.id} · {t.category} · 风险 {t.risk_level}）")
-            cb.setChecked(t.id in self._preset_ids("每日常规"))
-            self.checks[t.id] = cb
+    def _build(self) -> None:
+        header = page_header("任务中心", "勾选要执行的任务，或直接套用预设。每日常规 = 配置中的任务顺序。")
 
+        # 预设 chips
         self.preset_row = QHBoxLayout()
+        self.preset_row.setSpacing(8)
+        preset_card = card()
+        pc = QVBoxLayout(preset_card)
+        pc.setContentsMargins(16, 12, 16, 12)
+        pc.setSpacing(8)
+        pc.addWidget(h2("预设"))
+        pc.addLayout(self.preset_row)
 
-        # 预设管理（仅高级模式显示）
+        # 任务卡片列表
+        self.checks: dict[str, QCheckBox] = {}
+        task_box = QVBoxLayout()
+        task_box.setSpacing(6)
+        for t in all_tasks():
+            row = QFrame()
+            row.setObjectName("cardFlat")
+            rl = QHBoxLayout(row)
+            rl.setContentsMargins(14, 10, 14, 10)
+            rl.setSpacing(12)
+            cb = QCheckBox(t.name)
+            cb.setChecked(t.id in self._preset_ids("每日常规"))
+            cb.setMinimumWidth(150)
+            self.checks[t.id] = cb
+            desc = QLabel(t.description or "")
+            desc.setObjectName("caption")
+            desc.setWordWrap(True)
+            meta = QLabel(f"{t.category} · 风险 {RISK_TEXT.get(t.risk_level, t.risk_level)}")
+            meta.setObjectName("muted")
+            rl.addWidget(cb)
+            rl.addWidget(desc, 1)
+            rl.addWidget(meta)
+            task_box.addWidget(row)
+
+        task_card = card()
+        tc = QVBoxLayout(task_card)
+        tc.setContentsMargins(16, 14, 16, 14)
+        tc.setSpacing(10)
+        tc.addWidget(h2("任务"))
+        tc.addLayout(task_box)
+
+        # 预设管理行（仅高级模式）
         self.preset_edit = QLineEdit()
         self.preset_edit.setPlaceholderText("预设名称")
         self.save_preset_btn = QPushButton("保存当前勾选")
         self.save_preset_btn.clicked.connect(self._save_preset)
         self.preset_combo = QComboBox()
-        self.preset_combo.setMinimumWidth(140)
+        self.preset_combo.setMinimumWidth(150)
         self.delete_preset_btn = QPushButton("删除")
+        self.delete_preset_btn.setObjectName("danger")
         self.delete_preset_btn.clicked.connect(self._delete_preset)
         self.preset_status = QLabel("")
         self.preset_status.setObjectName("muted")
         mgmt_row = QHBoxLayout()
+        mgmt_row.setSpacing(8)
+        self._mgmt_label = QLabel("预设管理：")
+        self._mgmt_label.setObjectName("muted")
+        mgmt_row.addWidget(self._mgmt_label)
         mgmt_row.addWidget(self.preset_edit)
         mgmt_row.addWidget(self.save_preset_btn)
         mgmt_row.addWidget(self.preset_combo)
         mgmt_row.addWidget(self.delete_preset_btn)
         mgmt_row.addWidget(self.preset_status)
         mgmt_row.addStretch(1)
-        self._mgmt_label = QLabel("预设管理：")
-        mgmt_row.insertWidget(0, self._mgmt_label)
         self._mgmt_widgets = [self._mgmt_label, self.preset_edit, self.save_preset_btn,
                               self.preset_combo, self.delete_preset_btn, self.preset_status]
 
-        self.run_btn = QPushButton("开始执行")
-        self.run_btn.setObjectName("primary")
+        # 执行按钮（固定在页面底部，始终可见）
+        self.run_btn = QPushButton("开始执行所选任务")
+        self.run_btn.setObjectName("bigPrimary")
         self.run_btn.clicked.connect(self._emit_run)
+        bottom = QHBoxLayout()
+        bottom.setContentsMargins(20, 8, 20, 14)
+        bottom.addWidget(self.run_btn)
+        bottom.addStretch(1)
 
-        lay = QVBoxLayout(self)
-        lay.addWidget(title)
-        lay.addWidget(hint)
-        lay.addLayout(self.preset_row)
-        lay.addLayout(mgmt_row)
-        for cb in self.checks.values():
-            lay.addWidget(cb)
-        lay.addWidget(self.run_btn)
-        lay.addStretch(1)
+        body = QVBoxLayout()
+        body.setSpacing(12)
+        body.addLayout(header)
+        body.addWidget(preset_card)
+        body.addWidget(task_card)
+        body.addLayout(mgmt_row)
+        body.addStretch(1)
 
-        self.refresh_presets()
-        self.refresh_mode()
+        wrap = QWidget()
+        wrap.setLayout(body)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(wrap)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        outer.addWidget(scroll, 1)
+        outer.addLayout(bottom)
 
     # ---- 预设 ----
     def preset_names(self) -> list[str]:
@@ -263,9 +444,9 @@ class TaskPage(QWidget):
             w = item.widget()
             if w:
                 w.deleteLater()
-        self.preset_row.addWidget(QLabel("预设："))
         for name in self.preset_names():
             btn = QPushButton(name)
+            btn.setObjectName("chip")
             btn.clicked.connect(lambda _=False, n=name: self.apply_preset(n))
             self.preset_row.addWidget(btn)
         self.preset_row.addStretch(1)
@@ -324,6 +505,7 @@ class TaskPage(QWidget):
             self.run_requested.emit(entries)
 
 
+# ---------------------------------------------------------------- 主窗口
 class MainWindow(QMainWindow):
     def __init__(self, cfg, svc: ConfigurationService | None = None) -> None:
         super().__init__()
@@ -331,60 +513,105 @@ class MainWindow(QMainWindow):
         self.svc = svc or ConfigurationService()
         self.worker: TaskWorker | None = None
         self.setWindowTitle("arknights-auto — 明日方舟本地自动化助手")
-        self.resize(1024, 680)
+        self.resize(1120, 740)
+        self.setMinimumSize(920, 620)
 
-        # 左侧导航：常规页面 + 高级页面（仅高级模式显示）+ 底部模式切换
-        self.nav = QListWidget()
-        self.nav.addItems(NAV_ITEMS + ADVANCED_NAV)
-        self.nav.setFixedWidth(168)
-
-        self.home = HomePage(cfg)
-        self.task_page = TaskPage(cfg, self.svc)
-        self.runlog = RunLogPage()
-        self.advanced = AdvancedPage(cfg, self.svc)
-        self.diagnostics = DiagnosticsPage(cfg)
-        self.pages = QStackedWidget()
-        self.pages.addWidget(self.home)
-        self.pages.addWidget(self.task_page)
-        self.pages.addWidget(self.runlog)
-        self.pages.addWidget(SettingsPage(cfg, self.svc))
-        self.pages.addWidget(self.advanced)
-        self.pages.addWidget(self.diagnostics)
-
-        self.home.run_requested.connect(self._start)
-        self.home.stop_requested.connect(self._stop)
-        self.task_page.run_requested.connect(self._start_and_show_log)
-        self.nav.currentRowChanged.connect(self._on_nav)
-
-        # 自动更新检查 worker 占位（由 GUI 入口 run_gui 在窗口显示后触发）
-        self._update_worker = None
-
-        # 模式切换（只切换 ui.mode 与可见项，不重置任何参数）
-        self.mode_btn = QPushButton()
-        self.mode_btn.clicked.connect(self._toggle_mode)
-        self._refresh_mode_ui()
-
-        sidebar = QWidget()
-        side_lay = QVBoxLayout(sidebar)
-        side_lay.setContentsMargins(0, 0, 0, 0)
-        side_lay.addWidget(self.nav, 1)
-        side_lay.addWidget(self.mode_btn)
+        self._build_sidebar()
+        self._build_pages()
 
         central = QWidget()
         lay = QHBoxLayout(central)
-        lay.setContentsMargins(12, 12, 12, 12)
-        lay.addWidget(sidebar)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+        lay.addWidget(self.sidebar)
         lay.addWidget(self.pages, 1)
         self.setCentralWidget(central)
 
         self.statusBar().showMessage("就绪")
+        self._update_worker = None
+
+    # ---- 侧边栏 ----
+    def _build_sidebar(self) -> None:
+        from .. import __version__
+
+        self.sidebar = QWidget()
+        self.sidebar.setObjectName("sidebar")
+        self.sidebar.setFixedWidth(208)
+        lay = QVBoxLayout(self.sidebar)
+        lay.setContentsMargins(14, 18, 14, 14)
+        lay.setSpacing(6)
+
+        # 品牌区
+        brand = QHBoxLayout()
+        brand.setSpacing(10)
+        mark = QLabel("◈")
+        mark.setStyleSheet("font-size: 26px; font-weight: 900;")
+        mark.setObjectName("brandAccent")
+        words = QVBoxLayout()
+        words.setSpacing(0)
+        name1 = QLabel("ARKNIGHTS")
+        name1.setObjectName("brand")
+        name2 = QLabel("AUTO")
+        name2.setObjectName("brandAccent")
+        words.addWidget(name1)
+        words.addWidget(name2)
+        brand.addWidget(mark)
+        brand.addLayout(words)
+        brand.addStretch(1)
+        lay.addLayout(brand)
+
+        ver = QLabel(f"v{__version__}")
+        ver.setObjectName("version")
+        lay.addWidget(ver)
+        lay.addSpacing(14)
+
+        # 导航
+        self.nav = QListWidget()
+        self.nav.setObjectName("nav")
+        self.nav.addItems(NAV_ITEMS + ADVANCED_NAV)
+        self.nav.setFrameShape(QFrame.Shape.NoFrame)
+        self.nav.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.nav.currentRowChanged.connect(self._on_nav)
+        lay.addWidget(self.nav, 1)
+
+        # 底部：模式 + 主题
+        self.mode_btn = QPushButton()
+        self.mode_btn.setObjectName("modeBtn")
+        self.mode_btn.clicked.connect(self._toggle_mode)
+        self.theme_btn = QPushButton()
+        self.theme_btn.setObjectName("modeBtn")
+        self.theme_btn.clicked.connect(self._toggle_theme)
+        lay.addWidget(self.mode_btn)
+        lay.addWidget(self.theme_btn)
+
+    # ---- 页面 ----
+    def _build_pages(self) -> None:
+        self.home = HomePage(self.cfg)
+        self.task_page = TaskPage(self.cfg, self.svc)
+        self.runlog = RunLogPage()
+        self.advanced = AdvancedPage(self.cfg, self.svc)
+        self.diagnostics = DiagnosticsPage(self.cfg)
+        self.pages = QStackedWidget()
+        self.pages.addWidget(self.home)
+        self.pages.addWidget(self.task_page)
+        self.pages.addWidget(self.runlog)
+        self.pages.addWidget(SettingsPage(self.cfg, self.svc))
+        self.pages.addWidget(self.advanced)
+        self.pages.addWidget(self.diagnostics)
+        self.nav.setCurrentRow(0)
+
+        self.home.run_requested.connect(self._start)
+        self.home.stop_requested.connect(self._stop)
+        self.task_page.run_requested.connect(self._start_and_show_log)
+        self._refresh_mode_ui()
+        self._refresh_theme_ui()
 
     # ---- 模式切换（简单 / 高级）----
     def _refresh_mode_ui(self) -> None:
         advanced = self.cfg.ui.mode == "advanced"
         for i in range(len(NAV_ITEMS), len(NAV_ITEMS) + len(ADVANCED_NAV)):
             self.nav.item(i).setHidden(not advanced)
-        self.mode_btn.setText("模式：高级" if advanced else "模式：简单")
+        self.mode_btn.setText("⚙  模式：高级" if advanced else "⚙  模式：简单")
         self.mode_btn.setToolTip("切换简单/高级模式（不影响已保存的参数）")
         self.task_page.refresh_mode()
 
@@ -394,8 +621,27 @@ class MainWindow(QMainWindow):
         self._refresh_mode_ui()
         self.statusBar().showMessage(f"已切换到{'高级' if self.cfg.ui.mode == 'advanced' else '简单'}模式")
 
+    # ---- 主题切换 ----
+    def _refresh_theme_ui(self) -> None:
+        light = getattr(self.cfg.ui, "theme", "dark") == "light"
+        self.theme_btn.setText("☀  主题：浅色" if light else "☾  主题：深色")
+        self.theme_btn.setToolTip("切换深色/浅色主题")
+
+    def _toggle_theme(self) -> None:
+        from PySide6.QtWidgets import QApplication
+
+        from .theme import apply_theme
+
+        self.cfg.ui.theme = "light" if getattr(self.cfg.ui, "theme", "dark") == "dark" else "dark"
+        self.svc.save(self.cfg)
+        apply_theme(QApplication.instance(), self.cfg.ui.theme)
+        self._refresh_theme_ui()
+        self.statusBar().showMessage(f"主题已切换为{'浅色' if self.cfg.ui.theme == 'light' else '深色'}")
+
     def _on_nav(self, row: int) -> None:
         self.pages.setCurrentIndex(row)
+        if row == 0:
+            self.home.refresh_status()
 
     def check_updates(self) -> None:
         """后台检查新版本（Phase 7；config.updates.check_enabled 控制）。
