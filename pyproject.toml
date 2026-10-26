@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ak-auto"
-version = "0.2.0"
+version = "0.2.1"
 description = "明日方舟本地自动化助手（由 MaaFramework 驱动）"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
