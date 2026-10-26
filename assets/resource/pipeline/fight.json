@@ -6,130 +6,222 @@
       "Fight@InTerminal"
     ]
   },
-
   "Fight@Recover": {
     "action": "Custom",
     "custom_action": "FightRecoverCapture",
     "post_delay": 1000,
-    "next": ["Fight@Enter", "Fight@InTerminal"]
+    "next": [
+      "Fight@Enter",
+      "Fight@InTerminal"
+    ]
   },
-
   "Fight@Enter": {
     "action": "Click",
-    "target": [880, 110, 160, 100],
+    "target": [
+      880,
+      110,
+      160,
+      100
+    ],
     "post_delay": 3000,
-    "next": ["Fight@InTerminal"]
+    "next": [
+      "Fight@InTerminal"
+    ]
   },
-
   "Fight@InTerminal": {
     "recognition": "OCR",
     "expected": "作战",
-    "roi": [916, 479, 249, 127],
+    "roi": [
+      916,
+      479,
+      249,
+      127
+    ],
     "action": "DoNothing",
-    "next": ["Fight@GoLastBattle"]
+    "next": [
+      "Fight@GoLastBattle"
+    ]
   },
-
   "Fight@GoLastBattle": {
     "recognition": "OCR",
     "expected": "前往上一次作战",
-    "roi": [916, 479, 300, 150],
+    "roi": [
+      916,
+      479,
+      300,
+      150
+    ],
     "action": "Click",
     "post_delay": 1500,
-    "next": ["Fight@SetRepeat"]
+    "next": [
+      "Fight@SetRepeat"
+    ]
   },
-
   "Fight@OcrSanity": {
     "recognition": "OCR",
-    "roi": [1120, 5, 160, 55],
+    "roi": [
+      1120,
+      5,
+      160,
+      55
+    ],
     "action": "DoNothing"
   },
-
   "Fight@OcrCount": {
     "recognition": "OCR",
-    "roi": [950, 570, 110, 40],
+    "roi": [
+      950,
+      570,
+      110,
+      40
+    ],
     "action": "DoNothing"
   },
-
   "Fight@OcrTotal": {
     "recognition": "OCR",
-    "roi": [1150, 660, 120, 45],
+    "roi": [
+      1150,
+      660,
+      120,
+      45
+    ],
     "action": "DoNothing"
   },
-
   "Fight@SetRepeat": {
     "recognition": "OCR",
     "expected": "代理指挥",
-    "roi": [1100, 555, 170, 50],
+    "roi": [
+      1100,
+      555,
+      170,
+      50
+    ],
     "action": "Custom",
     "custom_action": "FightSetRepeatCount",
-    "next": ["Fight@StartAction"]
+    "next": [
+      "Fight@StartAction"
+    ]
   },
-
   "Fight@StartAction": {
     "recognition": "OCR",
     "expected": "开始行动",
-    "roi": [1080, 620, 200, 80],
+    "roi": [
+      1080,
+      620,
+      200,
+      80
+    ],
     "action": "Click",
     "post_delay": 2000,
-    "next": ["Fight@SanityShort", "Fight@FormationStart"]
+    "next": [
+      "Fight@SanityShort",
+      "Fight@FormationStart"
+    ]
   },
-
   "Fight@SanityShort": {
     "recognition": "OCR",
     "expected": "是否花费",
-    "roi": [600, 400, 600, 150],
+    "roi": [
+      600,
+      400,
+      600,
+      150
+    ],
     "action": "Click",
-    "target": [900, 630, 70, 45],
+    "target": [
+      900,
+      630,
+      70,
+      45
+    ],
     "post_delay": 1000,
-    "next": ["Fight@Done"]
+    "next": [
+      "Fight@Done"
+    ]
   },
-
   "Fight@FormationStart": {
     "action": "Click",
-    "target": [1030, 500, 150, 90],
+    "target": [
+      1030,
+      500,
+      150,
+      90
+    ],
     "post_delay": 2000,
     "timeout": 1500000,
-    "next": ["Fight@WaitBattle"]
+    "next": [
+      "Fight@WaitBattle"
+    ]
   },
-
   "Fight@WaitBattle": {
     "action": "DoNothing",
     "post_delay": 300000,
-    "next": ["Fight@Recover2"]
+    "next": [
+      "Fight@Recover2"
+    ]
   },
-
   "Fight@BattleEnd": {
     "recognition": "OCR",
-    "expected": ["MISSION RESULTS", "全员信赖提升", "行动结束"],
-    "roi": [0, 80, 640, 420],
+    "expected": [
+      "MISSION RESULTS",
+      "全员信赖提升",
+      "行动结束",
+      "掉落",
+      "首次掉落",
+      "固定掉落"
+    ],
+    "roi": [
+      0,
+      60,
+      900,
+      480
+    ],
     "action": "Click",
-    "target": [640, 360, 1, 1],
+    "target": [
+      640,
+      360,
+      1,
+      1
+    ],
     "post_delay": 1500,
-    "on_error": ["Fight@Aftermath"],
-    "next": ["Fight@Aftermath"]
+    "next": [
+      "Fight@Aftermath"
+    ]
   },
-
   "Fight@Recover2": {
     "action": "Custom",
     "custom_action": "FightRecoverCapture",
     "post_delay": 1000,
-    "next": ["Fight@BattleEnd"]
+    "next": [
+      "Fight@BattleEnd"
+    ]
   },
-
   "Fight@Aftermath": {
     "action": "Click",
-    "target": [640, 360, 1, 1],
+    "target": [
+      640,
+      360,
+      1,
+      1
+    ],
     "post_delay": 1500,
-    "next": ["Fight@Aftermath2"]
+    "next": [
+      "Fight@Aftermath2"
+    ]
   },
-
   "Fight@Aftermath2": {
     "action": "Click",
-    "target": [30, 25, 20, 20],
+    "target": [
+      30,
+      25,
+      20,
+      20
+    ],
     "post_delay": 1000,
-    "next": ["Fight@Done"]
+    "next": [
+      "Fight@Done"
+    ]
   },
-
   "Fight@Done": {
     "action": "DoNothing"
   }

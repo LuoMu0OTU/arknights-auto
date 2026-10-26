@@ -13,16 +13,18 @@
     ]
   },
   "StartUp@IsHome": {
-    "recognition": "TemplateMatch",
-    "template": "UiTheme/SwitchTheme/SwitchTheme@ToggleSettingsMenu.png",
-    "roi": [
-      227,
-      327,
-      159,
-      152
+    "recognition": "OCR",
+    "expected": [
+      "终端",
+      "仓库"
     ],
-    "action": "DoNothing",
-    "post_delay": 1500
+    "roi": [
+      700,
+      80,
+      581,
+      620
+    ],
+    "action": "DoNothing"
   },
   "StartUp@WakeUp": {
     "recognition": "OCR",
@@ -207,13 +209,16 @@
     ]
   },
   "ReturnToHome@IsHome": {
-    "recognition": "TemplateMatch",
-    "template": "UiTheme/SwitchTheme/SwitchTheme@ToggleSettingsMenu.png",
+    "recognition": "OCR",
+    "expected": [
+      "终端",
+      "仓库"
+    ],
     "roi": [
-      227,
-      327,
-      159,
-      152
+      700,
+      80,
+      581,
+      620
     ],
     "action": "DoNothing"
   },
