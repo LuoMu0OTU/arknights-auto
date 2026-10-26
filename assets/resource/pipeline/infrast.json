@@ -60,11 +60,7 @@
     "action": "Custom",
     "custom_action": "InfrastResumeStations",
     "post_delay": 500,
-    "on_error": [
-      "Infrast@Reception"
-    ],
     "next": [
-      "Infrast@ResumeStations",
       "Infrast@Reception"
     ]
   },
@@ -134,20 +130,19 @@
     "expected": "待办事项",
     "roi": [
       40,
-      640,
-      400,
-      80
+      620,
+      500,
+      100
     ],
     "action": "Click",
     "target": [
-      200,
-      690,
+      120,
+      660,
       1,
       1
     ],
-    "post_delay": 1500,
+    "post_delay": 2500,
     "next": [
-      "Infrast@Collect",
       "Infrast@NextRound"
     ]
   },

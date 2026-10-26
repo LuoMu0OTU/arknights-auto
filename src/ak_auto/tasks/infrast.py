@@ -44,9 +44,15 @@ def is_stopped(img: np.ndarray, name_box: tuple[int, int, int, int]) -> bool:
 
 
 class InfrastResumeStations(CustomAction):
-    """点击一个已停止的制造站；返回 True（点了一个，稍后重试）/ False（没有停工站了）。"""
+    """内部循环点完所有停工的制造站/贸易站，然后一次性返回 True（避免 next/on_error 重叠导致的死循环）。"""
 
     def run(self, context, argv) -> bool:
+        for _ in range(8):
+            if not self._click_one(context):
+                break
+        return True
+
+    def _click_one(self, context) -> bool:
         ctrl = context.tasker.controller
         try:
             img = ctrl.cached_image
