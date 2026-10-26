@@ -277,3 +277,72 @@ def test_diagnostics_run_checks() -> None:
     assert "识别资源（MANIFEST）" in names
     assert "游戏窗口" in names
     assert all(isinstance(ok, bool) and isinstance(msg, str) for _, ok, msg in checks)
+
+
+# ---------------- G7.3：竞态与防护 ----------------
+class _FakeRunningWorker:
+    def __init__(self) -> None:
+        self.stopped = False
+        self.waited = 0
+
+    def isRunning(self) -> bool:  # noqa: N802 —— 模拟 QThread API
+        return True
+
+    def stop(self) -> None:
+        self.stopped = True
+
+    def wait(self, ms: int = 0) -> bool:
+        self.waited += 1
+        return True
+
+
+def test_start_guard_blocks_second_run(qapp) -> None:
+    """已有任务在跑时，再点开始不会新建 worker（任务单例）。"""
+    from ak_auto.gui.main_window import MainWindow
+
+    win = MainWindow(AppConfig())
+    fake = _FakeRunningWorker()
+    win.worker = fake
+    win._start(["StartUp"])
+    assert win.worker is fake  # 未被替换
+    win.close()
+
+
+def test_close_during_run_stops_worker(qapp) -> None:
+    """运行中关闭窗口 → 协作式停止并等待（不遗留点击线程）。"""
+    from ak_auto.gui.main_window import MainWindow
+
+    win = MainWindow(AppConfig())
+    fake = _FakeRunningWorker()
+    win.worker = fake
+    win.close()
+    assert fake.stopped and fake.waited >= 1
+
+
+def test_repeated_page_switches_safe(qapp) -> None:
+    """反复切换页面不崩溃、索引始终有效。"""
+    from ak_auto.gui.main_window import ADVANCED_NAV, NAV_ITEMS, MainWindow
+
+    win = MainWindow(AppConfig())
+    for _ in range(3):
+        for i in range(len(NAV_ITEMS) + len(ADVANCED_NAV)):
+            win.nav.setCurrentRow(i)
+    assert 0 <= win.pages.currentIndex() < win.pages.count()
+    win.close()
+
+
+def test_global_stop_hidden_when_idle(qapp) -> None:
+    """空闲时状态栏的全局停止按钮不可见。"""
+    from ak_auto.gui.main_window import MainWindow
+
+    win = MainWindow(AppConfig())
+    assert win.global_stop.isVisible() is False
+    win.close()
+
+
+def test_failure_hints_cover_known_codes() -> None:
+    from ak_auto.gui.main_window import FAILURE_HINTS
+
+    for code in ("missing-node", "timeout", "cancelled"):
+        assert FAILURE_HINTS.get(code)
+

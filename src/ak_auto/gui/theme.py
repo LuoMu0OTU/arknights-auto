@@ -152,6 +152,8 @@ QPushButton {
 QPushButton:hover { border-color: %(border_hi)s; background: %(elevated)s; }
 QPushButton:pressed { background: %(surface)s; }
 QPushButton:disabled { color: %(muted)s; background: %(surface)s; border-color: %(border)s; }
+QPushButton:focus { border: 1px solid %(primary)s; }
+QPushButton#primary:focus { border: 2px solid %(on_primary)s; }
 QPushButton#primary {
     background: %(primary)s; color: %(on_primary)s;
     border: 1px solid %(primary)s; font-weight: 700;
