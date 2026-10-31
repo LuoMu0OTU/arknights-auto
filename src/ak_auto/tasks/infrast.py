@@ -206,7 +206,7 @@ class InfrastNextRound(CustomAction):
         ctrl = context.tasker.controller
         print(f"[infrast] 第 {_ROUND['n']} 轮完成，回主界面准备再进基建", flush=True)
         ctrl.post_click(*BACK_BTN).wait()
-        time.sleep(2.5)
+        time.sleep(4.0)   # 基地→主页切换动画需要时间，2.5 秒不够会导致下一轮 Enter 点空
         return True
 
 
