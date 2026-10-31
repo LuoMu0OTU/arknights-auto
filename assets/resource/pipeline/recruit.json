@@ -8,10 +8,10 @@
   "Recruit@Enter": {
     "action": "Click",
     "target": [
-      990,
-      440,
-      140,
-      70
+      915,
+      450,
+      120,
+      65
     ],
     "post_delay": 1500,
     "next": [
@@ -44,20 +44,25 @@
       570
     ],
     "action": "Click",
-    "post_delay": 2000,
+    "post_delay": 3000,
     "next": [
       "Recruit@SkipAnim"
     ]
   },
   "Recruit@SkipAnim": {
-    "action": "Click",
-    "target": [
-      1120,
-      10,
-      160,
-      70
+    "recognition": "OCR",
+    "expected": [
+      "SKIP",
+      "跳过"
     ],
-    "post_delay": 2000,
+    "roi": [
+      1000,
+      0,
+      281,
+      120
+    ],
+    "action": "Click",
+    "post_delay": 3000,
     "next": [
       "Recruit@ResultDismiss",
       "Recruit@OnRecruitScreen"
@@ -71,7 +76,7 @@
       1,
       1
     ],
-    "post_delay": 1800,
+    "post_delay": 2500,
     "next": [
       "Recruit@ResultDismiss2",
       "Recruit@OnRecruitScreen"
@@ -85,7 +90,7 @@
       1,
       1
     ],
-    "post_delay": 1800,
+    "post_delay": 2500,
     "next": [
       "Recruit@OnRecruitScreen",
       "Recruit@Done"
@@ -142,7 +147,7 @@
       32,
       32
     ],
-    "post_delay": 2000,
+    "post_delay": 2500,
     "next": [
       "Recruit@OnRecruitScreen"
     ]
