@@ -1,6 +1,7 @@
 {
   "StartUp": {
     "next": [
+      "StartUp@Intro",
       "StartUp@Activity",
       "StartUp@IsHome",
       "StartUp@WakeUp",
@@ -12,6 +13,31 @@
       "StartUp@TapToWake",
       "StartUp@CloseAnno",
       "StartUp@Offline"
+    ]
+  },
+  "StartUp@Intro": {
+    "recognition": "OCR",
+    "expected": [
+      "天灾",
+      "泰拉",
+      "清除缓存"
+    ],
+    "roi": [
+      0,
+      40,
+      1281,
+      680
+    ],
+    "action": "Click",
+    "target": [
+      640,
+      675,
+      1,
+      1
+    ],
+    "post_delay": 5000,
+    "next": [
+      "StartUp"
     ]
   },
   "StartUp@Activity": {
@@ -240,6 +266,7 @@
       "ReturnToHome@IsHome",
       "ReturnToHome@ReturnConfirm",
       "ReturnToHome@ReturnButton",
+      "ReturnToHome@CloseSignin",
       "ReturnToHome@ClosePopup",
       "ReturnToHome@CloseAnno"
     ]
@@ -314,6 +341,32 @@
       80
     ],
     "action": "Click",
+    "next": [
+      "ReturnToHome"
+    ]
+  },
+  "ReturnToHome@CloseSignin": {
+    "recognition": "OCR",
+    "expected": [
+      "签到",
+      "物资",
+      "前瞻",
+      "活动"
+    ],
+    "roi": [
+      0,
+      60,
+      1281,
+      660
+    ],
+    "action": "Click",
+    "target": [
+      1248,
+      92,
+      1,
+      1
+    ],
+    "post_delay": 1800,
     "next": [
       "ReturnToHome"
     ]
