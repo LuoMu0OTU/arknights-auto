@@ -36,7 +36,10 @@
   },
   "Recruit@Hire": {
     "recognition": "OCR",
-    "expected": "聘用候选人",
+    "expected": [
+      "聘用",
+      "聘用候选人"
+    ],
     "roi": [
       0,
       150,
