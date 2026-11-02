@@ -39,7 +39,85 @@
     ],
     "action": "DoNothing",
     "next": [
+      "Fight@Resource",
       "Fight@GoLastBattle"
+    ]
+  },
+  "Fight@Resource": {
+    "recognition": "OCR",
+    "expected": [
+      "终端",
+      "资源收集"
+    ],
+    "roi": [
+      0,
+      600,
+      700,
+      120
+    ],
+    "action": "Click",
+    "target": [
+      530,
+      660,
+      1,
+      1
+    ],
+    "post_delay": 3000,
+    "next": [
+      "Fight@Cargo"
+    ]
+  },
+  "Fight@Cargo": {
+    "recognition": "OCR",
+    "expected": [
+      "货物运送"
+    ],
+    "roi": [
+      300,
+      430,
+      420,
+      110
+    ],
+    "action": "Click",
+    "post_delay": 3500,
+    "next": [
+      "Fight@Stage"
+    ]
+  },
+  "Fight@Stage": {
+    "recognition": "OCR",
+    "expected": [
+      "CE-6",
+      "CE6"
+    ],
+    "roi": [
+      850,
+      90,
+      431,
+      260
+    ],
+    "action": "Click",
+    "post_delay": 2500,
+    "next": [
+      "Fight@StageStart"
+    ]
+  },
+  "Fight@StageStart": {
+    "recognition": "OCR",
+    "expected": [
+      "开始行动"
+    ],
+    "roi": [
+      930,
+      600,
+      351,
+      120
+    ],
+    "action": "Click",
+    "post_delay": 3500,
+    "next": [
+      "Fight@FormationStart",
+      "Fight@WaitBattle"
     ]
   },
   "Fight@GoLastBattle": {
