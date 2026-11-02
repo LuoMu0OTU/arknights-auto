@@ -55,9 +55,8 @@ class InfrastResumeStations(CustomAction):
 
     def _click_one(self, context) -> bool:
         ctrl = context.tasker.controller
-        try:
-            img = ctrl.cached_image
-        except Exception:  # noqa: BLE001
+        img = fresh_image(ctrl)   # 每轮都要新图：点击后 cached_image 不会刷新
+        if img is None:
             return False
         detail = context.run_recognition("Infrast@OcrMfgStation", img)
         if not detail:
@@ -116,7 +115,10 @@ class InfrastReception(CustomAction):
 
     def run(self, context, argv) -> bool:
         ctrl = context.tasker.controller
-        img = ctrl.cached_image
+        img = fresh_image(ctrl)
+        if img is None:
+            print("[infrast] 会客室抓图失败", flush=True)
+            return False
 
         def click(pt, wait=1.2):
             ctrl.post_click(pt[0], pt[1]).wait()
@@ -220,44 +222,133 @@ TODO_BUTTONS = (
     "干员疲劳",     # 疲劳干员
     "干员休整",     # 待休整干员
 )
+BAR_LABEL = "待办事项"   # 待办条打开时左下角一定有这个标签（条开没开用它判断，比按钮稳）
+
+# ---- 打开待办事项 ----
+# 右上角 ⚠（EMERGENCY）与蓝铃铛（NOTIFICATION）上下堆叠：
+#   ⚠ 本身就是一项收菜任务，点完并处理完后 ⚠ 消失，铃铛上移顶替它的位置。
+# 蓝铃铛是**开关**：待办条打开时再点会关掉！所以必须
+#   「点一次 → 检查待办条是否出现 → 没出现才点另一个位置」，绝不能无脑连点两次。
+BELL_OCR = (1000, 50, 281, 140)
+BELL_POSITIONS = ((1242, 97), (1242, 133))   # 上面(⚠或已上移的铃铛) / 下面(⚠在时的铃铛)
+BELL_X = 1242
+
+
+def _norm(text: str) -> str:
+    return (text or "").replace(" ", "")
+
+
+def bar_opened(texts) -> bool:
+    """待办条是否已打开：OCR 到「待办事项」标签或任一待办按钮即算打开。
+
+    ⚠ 真机实测：条收起时左下角什么都没有；条打开时一定有「待办事项」标签，
+    因此标签比「有没有按钮」更可靠（按钮为 0 个时条仍然是开着的）。
+    """
+    for text in texts:
+        t = _norm(text)
+        if BAR_LABEL in t:
+            return True
+        if any(name in t for name in TODO_BUTTONS):
+            return True
+    return False
+
+
+def todo_names_in(texts) -> list[str]:
+    """OCR 文本里出现的待办按钮名（按 TODO_BUTTONS 优先顺序）。"""
+    found = []
+    normed = [_norm(t) for t in texts]
+    for name in TODO_BUTTONS:
+        if any(name in t for t in normed):
+            found.append(name)
+    return found
+
+
+def pick_target(results, clicks, max_same: int = 3):
+    """挑下一个要点的待办按钮。
+
+    results: [(text, box)]（Infrast@OcrTodoBar 的识别结果）
+    clicks:  {按钮名: 已点次数}
+    策略：优先点**还没点过**的按钮；都点过了就挑点得最少的重试（「2个干员」这类
+          点一次只处理一个），但同一个按钮最多 max_same 次，防止死循环。
+    返回 (name, box) 或 None（没有任何按钮 / 全部点够次数）。
+    """
+    candidates: list[tuple[int, str, tuple[int, int, int, int]]] = []
+    for name in TODO_BUTTONS:
+        for text, box in results:
+            if name in _norm(text):
+                candidates.append((clicks.get(name, 0), name, box))
+                break
+    if not candidates:
+        return None
+    clickable = [c for c in candidates if c[0] < max_same]
+    if not clickable:
+        return None
+    _count, name, box = min(clickable, key=lambda c: c[0])
+    return name, box
+
+
+def fresh_image(ctrl):
+    """主动抓一帧新图（点击后必须用它，否则永远看到点击前的画面）。
+
+    ⚠ 踩坑（2026-11-02）：CustomAction 里 `ctrl.cached_image` 返回的是
+    **本节点做识别时**那张旧帧，点击之后不会刷新。用它去判断「待办条开没开」，
+    就会永远看到点击前的画面 → 铃铛明明已经点开却判定「没打开」，然后补点第二下
+    把条关掉 / 继续走流程，表现为「铃铛点不开、收菜没收」的静默失败。
+    """
+    try:
+        img = ctrl.post_screencap().wait().get()
+    except Exception:  # noqa: BLE001
+        return None
+    if img is None or getattr(img, "size", 0) == 0:
+        return None
+    return img
+
+
+def ocr_todo_bar(context, img) -> list[tuple[str, tuple[int, int, int, int]]]:
+    """跑 Infrast@OcrTodoBar 识别，返回 [(text, box)]。"""
+    detail = context.run_recognition("Infrast@OcrTodoBar", img)
+    out: list[tuple[str, tuple[int, int, int, int]]] = []
+    if detail is None:
+        return out
+    for r in (getattr(detail, "all_results", None) or []):
+        box = tuple(getattr(r, "box", ()))
+        out.append(((getattr(r, "text", "") or ""), box))
+    return out
 
 
 class InfrastTodoCollect(CustomAction):
     """循环点击待办事项条上的按钮直到点完；不点设施图标（避免进入房间）。
 
     完成判据（负责人要求）：待办事项按钮全部消失才算收菜成功。
-    为避免"检查太快"造成的误判，要求**连续 2 次**识别不到任何按钮才算点完；
-    超过最大轮次仍有按钮则返回 False（任务失败），不允许假装成功。
+    每轮都用**新截图**判断（见 fresh_image 的踩坑说明）：
+    - 条上没有任何按钮 → 连续 EMPTY_CONFIRM 次确认后算成功；
+    - 按钮还在、但每个都点够 MAX_SAME 次仍不消失 → 返回 False（如实失败，不假装成功）。
     """
 
     EMPTY_CONFIRM = 2      # 连续空识别次数（防抖动误判）
     MAX_CLICKS = 12        # 最多点击轮次
+    MAX_SAME = 3           # 同一个按钮最多点几次（「2个干员」这类要重复点）
+    CLICK_WAIT = 3.0       # 点击后等待识别结果稳定
 
     def run(self, context, argv) -> bool:
         ctrl = context.tasker.controller
-        clicked: set[str] = set()
+        clicks: dict[str, int] = {}
         empty_checks = 0
         for _ in range(self.MAX_CLICKS + self.EMPTY_CONFIRM):
-            try:
-                img = ctrl.cached_image
-            except Exception:  # noqa: BLE001
-                return True
+            img = fresh_image(ctrl)
             if img is None:
+                print("[infrast] 抓图失败，停止待办收菜", flush=True)
+                return False
+            results = ocr_todo_bar(context, img)
+            texts = [t for t, _ in results]
+            if not bar_opened(texts):
+                # 真机实测：待办项清空后待办条会**自动收起**，所以「条不见了」= 已收完
+                if clicks:
+                    print(f"[infrast] 待办条已自动收起（已点 {sum(clicks.values())} 次，视为收完）", flush=True)
+                else:
+                    print("[infrast] 待办条未打开（按没有待办处理）", flush=True)
                 return True
-            target = None
-            detail = context.run_recognition("Infrast@OcrTodoBar", img)
-            if detail:
-                for name in TODO_BUTTONS:
-                    if name in clicked:
-                        continue
-                    for r in detail.all_results:
-                        text = (getattr(r, "text", "") or "").replace(" ", "")
-                        if name in text:
-                            target = (name, r.box)
-                            break
-                    if target:
-                        break
-            if target is None:
+            if not todo_names_in(texts):
                 empty_checks += 1
                 if empty_checks >= self.EMPTY_CONFIRM:
                     print(f"[infrast] 待办事项已点完（连续 {empty_checks} 次确认）", flush=True)
@@ -265,44 +356,32 @@ class InfrastTodoCollect(CustomAction):
                 time.sleep(0.8)
                 continue
             empty_checks = 0
+            target = pick_target(results, clicks, self.MAX_SAME)
+            if target is None:
+                stuck = [n for n in todo_names_in(texts) if clicks.get(n, 0) >= self.MAX_SAME]
+                print(f"[infrast] 待办按钮点了 {self.MAX_SAME} 次仍在：{'/'.join(stuck)}", flush=True)
+                return False
             name, box = target
             cx, cy = box[0] + box[2] // 2, box[1] + box[3] // 2
             print(f"[infrast] 点待办「{name}」({cx},{cy})", flush=True)
             ctrl.post_click(cx, cy).wait()
-            clicked.add(name)
-            time.sleep(3.0)
+            clicks[name] = clicks.get(name, 0) + 1
+            time.sleep(self.CLICK_WAIT)
         print("[infrast] 待办事项未清空（超过最大点击次数），标记失败", flush=True)
         return False
-
-# ---- 打开待办事项 ----
-# 右上角 ⚠（EMERGENCY）与蓝铃铛（NOTIFICATION）上下堆叠：
-#   ⚠ 本身就是一项收菜任务，点完并处理完后 ⚠ 消失，铃铛上移顶替它的位置。
-# ⚠ 蓝铃铛是**开关**：待办条打开时再点会关掉！所以必须
-#   「点一次 → 检查待办条是否出现 → 没出现才点另一个位置」，绝不能无脑连点两次。
-BELL_OCR = (1000, 50, 281, 140)
-BELL_POSITIONS = ((1242, 97), (1242, 133))   # 上面(⚠或已上移的铃铛) / 下面(⚠在时的铃铛)
-BELL_X = 1242
 
 
 class InfrastOpenTodo(CustomAction):
     """点开待办事项条：点一次就检查是否打开，避免把刚打开的条又点关。"""
 
+    CLICK_WAIT = 1.8       # 点击后等开合动画
+    ENSURE_WAIT = 1.2      # 动画慢时的二次确认等待
+
     def _bar_visible(self, context) -> bool:
-        """待办条是否已打开：OCR 到条上的按钮文字即视为打开。"""
-        try:
-            img = context.tasker.controller.cached_image
-        except Exception:  # noqa: BLE001
-            return False
+        img = fresh_image(context.tasker.controller)
         if img is None:
             return False
-        detail = context.run_recognition("Infrast@OcrTodoBar", img)
-        if not detail:
-            return False
-        for r in detail.all_results:
-            text = (getattr(r, "text", "") or "").replace(" ", "")
-            if any(name in text for name in TODO_BUTTONS):
-                return True
-        return False
+        return bar_opened([t for t, _ in ocr_todo_bar(context, img)])
 
     def run(self, context, argv) -> bool:
         ctrl = context.tasker.controller
@@ -312,13 +391,15 @@ class InfrastOpenTodo(CustomAction):
                 return True
             print(f"[infrast] 点铃铛 #{attempt} ({x},{y})", flush=True)
             ctrl.post_click(x, y).wait()
-            time.sleep(2.2)
+            time.sleep(self.CLICK_WAIT)
             if self._bar_visible(context):
-                print("[infrast] 待办条已打开", flush=True)
+                print(f"[infrast] 待办条已打开（第 {attempt} 次点击）", flush=True)
                 return True
-        # 两次都没打开：可能第一次已经打开了但没识别到按钮，再确认一次
-        if self._bar_visible(context):
-            return True
-        print("[infrast] 铃铛两次点击后仍未打开待办条", flush=True)
+            time.sleep(self.ENSURE_WAIT)
+            if self._bar_visible(context):
+                print(f"[infrast] 待办条已打开（第 {attempt} 次点击，延迟确认）", flush=True)
+                return True
+        # 两次都没打开：可能本来就没有待办（条不会弹），交给 InfrastTodoCollect 判空
+        print("[infrast] 铃铛两次点击后仍未打开待办条（按没有待办继续）", flush=True)
         return True
 
