@@ -352,6 +352,11 @@ class InfrastTodoCollect(CustomAction):
                 empty_checks += 1
                 if empty_checks >= self.EMPTY_CONFIRM:
                     print(f"[infrast] 待办事项已点完（连续 {empty_checks} 次确认）", flush=True)
+                    # 条上还有认不出的东西就打到日志：⚠ 与铃铛开的是同一条待办条，
+                    # 但按钮集合可能随版本变化，静默跳过是最坏的结果。
+                    others = [t for t in texts if _norm(t) and BAR_LABEL not in _norm(t)]
+                    if others:
+                        print(f"[infrast] 条上未识别内容：{'|'.join(others[:8])}", flush=True)
                     return True
                 time.sleep(0.8)
                 continue
