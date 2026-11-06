@@ -407,10 +407,11 @@ class InfrastOpenTodo(CustomAction):
                 print(f"[infrast] 待办条已打开（第 {attempt} 次点击，延迟确认）", flush=True)
                 return True
         # 两次都没打开：存图便于事后核对（下次会话排查用）
+        # ⚠ 必须抓新帧：cached_image 是节点识别时的旧图，存下来会误导排查
         try:
             from ak_auto import device as _device
 
-            img = context.tasker.controller.cached_image
+            img = fresh_image(ctrl)
             if img is not None:
                 _device.save_image(img, "debug/shots/infrast_bell_failed.png")
         except Exception:  # noqa: BLE001
