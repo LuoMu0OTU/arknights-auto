@@ -80,6 +80,9 @@ class RecruitConfig(BaseModel):
 class MallConfig(BaseModel):
     buy_first: list[str] = Field(default_factory=lambda: ["招聘许可", "寻访凭证"])
     blacklist: list[str] = Field(default_factory=lambda: ["家具零件"])
+    # 每日信用上限 300，超出部分次日清零 → 领完信用后必须把它花到这个数以下
+    credit_limit: int = Field(default=300, ge=0, le=3000)
+    credit_keep_below: int = Field(default=300, ge=0, le=3000)
 
 
 class AwardConfig(BaseModel):
