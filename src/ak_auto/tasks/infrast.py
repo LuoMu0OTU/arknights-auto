@@ -225,12 +225,14 @@ TODO_BUTTONS = (
 BAR_LABEL = "待办事项"   # 待办条打开时左下角一定有这个标签（条开没开用它判断，比按钮稳）
 
 # ---- 打开待办事项 ----
-# 右上角 ⚠（EMERGENCY）与蓝铃铛（NOTIFICATION）上下堆叠：
-#   ⚠ 本身就是一项收菜任务，点完并处理完后 ⚠ 消失，铃铛上移顶替它的位置。
+# 右上角 ⚠（EMERGENCY）与蓝铃铛（NOTIFICATION）上下堆叠，同一列（x=1242）：
+#   ⚠ 的待办清完后 ⚠ 消失，铃铛图标直接顶上它的位置（位置是动态的，不能写死映射）。
+#   负责人 2026-11-02 口径：**⚠ 与铃铛是同一套流程**——点哪个都是打开底部同一条
+#   「待办事项」条，接着照常点条上的按钮即可，不需要给 ⚠ 单独分支。
 # 蓝铃铛是**开关**：待办条打开时再点会关掉！所以必须
-#   「点一次 → 检查待办条是否出现 → 没出现才点另一个位置」，绝不能无脑连点两次。
+#   「点一次 → 抓新帧看条开没开 → 没开才点另一个位置」，绝不能无脑连点两次。
 BELL_OCR = (1000, 50, 281, 140)
-BELL_POSITIONS = ((1242, 97), (1242, 133))   # 上面(⚠或已上移的铃铛) / 下面(⚠在时的铃铛)
+BELL_POSITIONS = ((1242, 97), (1242, 133))   # ⚠/已上移的铃铛 在 97；⚠ 在场时铃铛在 133
 BELL_X = 1242
 
 
@@ -404,7 +406,20 @@ class InfrastOpenTodo(CustomAction):
             if self._bar_visible(context):
                 print(f"[infrast] 待办条已打开（第 {attempt} 次点击，延迟确认）", flush=True)
                 return True
-        # 两次都没打开：可能本来就没有待办（条不会弹），交给 InfrastTodoCollect 判空
-        print("[infrast] 铃铛两次点击后仍未打开待办条（按没有待办继续）", flush=True)
+        # 两次都没打开：存图便于事后核对（下次会话排查用）
+        try:
+            from ak_auto import device as _device
+
+            img = context.tasker.controller.cached_image
+            if img is not None:
+                _device.save_image(img, "debug/shots/infrast_bell_failed.png")
+        except Exception:  # noqa: BLE001
+            pass
+        # 仍按"没有待办"继续，但打印明确告警：这条日志 = 待办条没打开、可能漏收
+        print(
+            "[infrast] ⚠ 铃铛两次点击后仍未打开待办条（已存图 infrast_bell_failed.png，"
+            "若待办里确有任务则会漏收）",
+            flush=True,
+        )
         return True
 
